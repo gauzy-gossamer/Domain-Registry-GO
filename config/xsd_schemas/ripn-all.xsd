@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+  <!--
+  This schema does not define anything, it just imports other schemas
+  and makes the usage of EPP schemas more convenient.
+  -->
+  <schema targetNamespace="http://www.ripn.net/epp/all-2.3"
+          xmlns:all="http://www.ripn.net/epp/all-2.3"
+          xmlns="http://www.w3.org/2001/XMLSchema"
+          elementFormDefault="qualified">
+
+    <!--
+    Import all schemas related to EPP protocol.
+    Anytime the version of any imported schema is raised, the version of
+    'all' schema must be raised too.
+
+    eppcom and epp schemas never change the version. This would result
+    in incompatibility with EPP standard.
+    -->
+    <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0"
+      schemaLocation="ripn-eppcom-1.0.xsd"/>
+    <import namespace="http://www.ripn.net/epp/ripn-epp-1.0"
+      schemaLocation="ripn-epp-1.0.xsd"/>
+    <import namespace="http://www.ripn.net/epp/ripn-contact-1.0" xmlns:contact="http://www.ripn.net/epp/ripn-contact-1.0" 
+      schemaLocation="ripn-contact-1.0.xsd"/>
+    <import namespace="http://www.ripn.net/epp/ripn-domain-1.0"
+      schemaLocation="ripn-domain-1.0.xsd"/>
+    <import namespace="http://www.ripn.net/epp/ripn-host-1.0"
+      schemaLocation="ripn-host-1.0.xsd"/>
+    <import namespace="http://www.ripn.net/epp/ripn-registrar-1.0"
+      schemaLocation="ripn-registrar-1.0.xsd"/>
+    <import namespace="urn:ietf:params:xml:ns:secDNS-1.1"
+      schemaLocation="secDNS-1.1.xsd"/>
+
+    <annotation>
+      <documentation>
+        Extensible Provisioning Protocol v1.0
+        all schema's grouped together
+      </documentation>
+    </annotation>
+
+  </schema>

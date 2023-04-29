@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema targetNamespace="http://www.ripn.net/epp/ripn-registrar-1.0"
+xmlns:registrar="http://www.ripn.net/epp/ripn-registrar-1.0"
+xmlns:epp="http://www.ripn.net/epp/ripn-epp-1.0"
+xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0"
+xmlns:host="http://www.ripn.net/epp/ripn-host-1.0"
+xmlns:contact="http://www.ripn.net/epp/ripn-contact-1.0"
+xmlns="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <!--
+    Import common element types.
+  -->
+  <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0" schemaLocation="ripn-eppcom-1.0.xsd"/>
+  <import namespace="http://www.ripn.net/epp/ripn-contact-1.0" schemaLocation="ripn-contact-1.0.xsd"/>
+  <import namespace="http://www.ripn.net/epp/ripn-host-1.0" schemaLocation="ripn-host-1.0.xsd"/>
+  <annotation>
+    <documentation>
+      Extensible Provisioning Protocol v1.0
+      RIPN registrar provisioning schema.
+    </documentation>
+  </annotation>
+  <!--
+    Child elements found in EPP commands.
+  -->
+  <element name="info" type="registrar:infoType"/>
+  <element name="update" type="registrar:updateType"/>
+  <!--
+    Utility types.
+  -->
+  <simpleType name="emailPurposeType">
+    <restriction base="token">
+      <enumeration value="auth"/> <!-- auth-mail-from -->
+      <enumeration value="authNotify"/> <!-- upd-to -->
+      <enumeration value="notify"/> <!-- mnt-nfy -->
+      <enumeration value="info"/> <!-- e-mail -->
+    </restriction>
+  </simpleType>
+  <complexType name="emailType">
+    <simpleContent>
+      <extension base="contact:emailType">
+        <attribute name="type" type="registrar:emailPurposeType" use="required"/>
+      </extension>
+    </simpleContent>
+  </complexType>
+  <!--
+    Child elements of the <info> command.
+  -->
+  <simpleType name="whoisType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="255"/>
+    </restriction>
+  </simpleType>
+  <complexType name="infoType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child elements of the <update> command.
+  -->
+  <complexType name="updateType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="add" type="registrar:addRemType" minOccurs="0"/>
+      <element name="rem" type="registrar:addRemType" minOccurs="0"/>
+      <element name="chg" type="registrar:chgType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Data elements that can be added or removed.
+  -->
+  <complexType name="addRemType">
+    <sequence>
+      <element name="email" type="registrar:emailType" minOccurs="0" maxOccurs="unbounded"/>
+      <element name="addr" type="registrar:ipType" minOccurs="0" maxOccurs="20"/>
+    </sequence>
+  </complexType>
+  <!--
+    Data elements that can be changed.
+  -->
+  <complexType name="chgType">
+    <sequence>
+      <element name="voice" type="contact:phoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="www" type="eppcom:labelType" minOccurs="0"/>
+      <element name="whois" type="registrar:whoisType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child response elements.
+  -->
+  <element name="infData" type="registrar:infDataType"/>
+  <!--
+    <info> response elements.
+  -->
+  <complexType name="statusType">
+    <attribute name="s" type="registrar:statusValueType" use="required"/>
+  </complexType>
+  <simpleType name="statusValueType">
+    <restriction base="token">
+      <enumeration value="active"/>
+      <enumeration value="blocked"/>
+      <enumeration value="objectCreateProhibited"/>
+      <enumeration value="deleted"/>
+    </restriction>
+  </simpleType>
+  <complexType name="ipType">
+    <simpleContent>
+      <extension base="host:addrStringType">
+        <attribute name="ip" type="host:ipType" default="v4"/>
+      </extension>
+    </simpleContent>
+  </complexType>
+  <complexType name="orgIntPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:intPostalLineType"/>
+      <element name="address" type="contact:intAddressType" minOccurs="0" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+  <complexType name="orgLocPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:postalLineType"/>
+      <element name="address" type="contact:addressType" minOccurs="0" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+  <complexType name="legalInfoType">
+    <sequence>
+      <element name="address" type="contact:addressType" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+  <complexType name="infDataType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="status" type="registrar:statusType" minOccurs="0" maxOccurs="4"/>
+      <element name="intPostalInfo" type="registrar:orgIntPostalInfoType" minOccurs="0" />
+      <element name="locPostalInfo" type="registrar:orgLocPostalInfoType" minOccurs="0" />
+      <element name="legalInfo" type="registrar:legalInfoType" minOccurs="0"/>
+      <element name="taxpayerNumbers" type="contact:taxpayerNumbersType" minOccurs="0"/>
+      <element name="voice" type="contact:phoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:phoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="email" type="registrar:emailType" minOccurs="0" maxOccurs="unbounded"/>
+      <element name="www" type="eppcom:labelType" minOccurs="0"/>
+      <element name="whois" type="registrar:whoisType" minOccurs="0"/>
+      <element name="addr" type="registrar:ipType" minOccurs="0" maxOccurs="20"/>
+      <element name="crDate" type="dateTime" minOccurs="0"/>
+      <element name="upDate" type="dateTime" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    End of schema.
+  -->
+</schema>

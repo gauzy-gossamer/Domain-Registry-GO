@@ -1,0 +1,38 @@
+/*
+gRPC declaration
+
+compile python mapping with:
+ pip3 install grpcio-tools
+ python3 -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. registry.proto
+
+compile go mapping with:
+ apt install protobuf-compiler
+ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+ protoc --go-grpc_out=./ --go_out=./  registry.proto
+*/
+
+syntax = "proto3";
+
+option go_package = ".;regrpc";
+
+service Registry {
+    rpc LoginSystem(Empty) returns (Session) {}
+    rpc GetExpiredDomains(Session) returns (stream Domain) {}
+    rpc DeleteDomain(Domain) returns (Status) {}
+    rpc LogoutSystem(Session) returns (Status) {}
+}
+
+message Empty {}
+
+message Session {
+    string sessionid = 1;
+}
+
+message Domain {
+    string sessionid = 1;
+    string name = 2;
+}
+
+message Status {
+    int32 return_code = 1;
+}

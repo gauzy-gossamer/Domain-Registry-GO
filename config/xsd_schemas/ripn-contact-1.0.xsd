@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns:contact="http://www.ripn.net/epp/ripn-contact-1.0"
+xmlns:epp="http://www.ripn.net/epp/ripn-epp-1.0"
+xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0"
+xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.ripn.net/epp/ripn-contact-1.0" elementFormDefault="qualified">
+  <!--
+    Import common element types.
+  -->
+  <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0" schemaLocation="ripn-eppcom-1.0.xsd"/>
+  <import namespace="http://www.ripn.net/epp/ripn-epp-1.0" schemaLocation="ripn-epp-1.0.xsd"/>
+  <annotation>
+    <documentation>
+      Extensible Provisioning Protocol v1.0
+      RIPN contact provisioning schema.
+    </documentation>
+  </annotation>
+  <!--
+    Child elements found in EPP commands.
+  -->
+  <element name="check" type="contact:mIDType"/>
+  <element name="create" type="contact:createType"/>
+  <element name="delete" type="contact:sIDType"/>
+  <element name="info" type="contact:infoType"/>
+  <element name="transfer" type="contact:authIDType"/>
+  <element name="update" type="contact:updateType"/>
+  <!--
+    Utility types.
+  -->
+  <simpleType name="intPostalLineType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="510"/>
+      <pattern value="\p{IsBasicLatin}+"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="postalLineType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="510"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="dataType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="2500"/>
+    </restriction>
+  </simpleType>
+
+  <!--
+    Child elements of the <create> command.
+  -->
+  <complexType name="createType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <choice>
+        <element name="organization" type="contact:organizationType"/>
+        <element name="person" type="contact:personType"/>
+      </choice>
+      <choice minOccurs="0">
+        <element name="verified"/>
+        <element name="unverified"/>
+      </choice>
+      <element name="authInfo" type="contact:authInfoType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="organizationType">
+    <sequence>
+      <element name="intPostalInfo" type="contact:orgIntPostalInfoType"/>
+      <element name="locPostalInfo" type="contact:orgLocPostalInfoType"/>
+      <element name="legalInfo" type="contact:legalInfoType"/>
+      <element name="taxpayerNumbers" type="contact:taxpayerNumbersType"/>
+      <element name="voice" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="email" type="contact:chgEmailType" minOccurs="0" maxOccurs="15"/>
+      <element name="disclose" type="contact:orgDiscloseType" minOccurs="0"/>
+      <element name="additional" type="contact:dataType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="personType">
+    <sequence>
+      <element name="intPostalInfo" type="contact:personIntPostalInfoType"/>
+      <element name="locPostalInfo" type="contact:personLocPostalInfoType"/>
+      <element name="taxpayerNumbers" type="contact:taxpayerNumbersType" minOccurs="0"/>
+      <element name="birthday" type="date"/>
+      <element name="passport" type="contact:passportType" maxOccurs="15"/>
+      <element name="voice" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="email" type="contact:chgEmailType" minOccurs="0" maxOccurs="15"/>
+      <element name="disclose" type="contact:personDiscloseType" minOccurs="0"/>
+      <element name="additional" type="contact:dataType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <simpleType name="passportType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="255"/>
+    </restriction>
+  </simpleType>
+  <complexType name="personIntPostalInfoType">
+    <sequence>
+      <element name="name" type="contact:intPostalLineType"/>
+      <element name="address" type="contact:intAddressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="personLocPostalInfoType">
+    <sequence>
+      <element name="name" type="contact:postalLineType"/>
+      <element name="address" type="contact:addressType" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="orgIntPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:intPostalLineType"/>
+      <element name="address" type="contact:intAddressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="orgLocPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:postalLineType"/>
+      <element name="address" type="contact:addressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <simpleType name="intAddressType">
+    <restriction base="token">
+      <minLength value="0"/>
+      <maxLength value="255"/>
+      <pattern value="\p{IsBasicLatin}*"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="addressType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="255"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="taxpayerNumbersType">
+    <restriction base="token">
+      <maxLength value="27"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="phoneType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="255"/>
+      <pattern value="\p{IsBasicLatin}+"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="chgPhoneType">
+    <restriction base="token">
+      <minLength value="0"/>
+      <maxLength value="255"/>
+      <pattern value="\p{IsBasicLatin}*"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="emailType">
+    <restriction base="token">
+      <minLength value="1"/>
+      <maxLength value="255"/>
+      <pattern value="\p{IsBasicLatin}+"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="chgEmailType">
+    <restriction base="token">
+      <minLength value="0"/>
+      <maxLength value="255"/>
+      <pattern value="\p{IsBasicLatin}*"/>
+    </restriction>
+  </simpleType>
+  <simpleType name="postalInfoEnumType">
+    <restriction base="token">
+      <enumeration value="loc"/>
+      <enumeration value="int"/>
+    </restriction>
+  </simpleType>
+  <complexType name="legalInfoType">
+    <sequence>
+      <element name="address" type="contact:addressType" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="authInfoType">
+    <choice>
+      <element name="pw" type="eppcom:pwAuthInfoType"/>
+      <element name="ext" type="eppcom:extAuthInfoType"/>
+    </choice>
+  </complexType>
+  <complexType name="orgDiscloseType">
+    <sequence>
+      <element name="intOrg" minOccurs="0"/>
+      <element name="locOrg" minOccurs="0"/>
+      <element name="intAddress" minOccurs="0"/>
+      <element name="locAddress" minOccurs="0"/>
+      <element name="legalAddress" minOccurs="0"/>
+      <element name="voice" minOccurs="0"/>
+      <element name="fax" minOccurs="0"/>
+      <element name="email" minOccurs="0"/>
+      <element name="taxpayerNumbers" minOccurs="0"/>
+    </sequence>
+    <attribute name="flag" type="boolean" use="required"/>
+  </complexType>
+  <complexType name="personDiscloseType">
+    <sequence>
+      <element name="intName" minOccurs="0"/>
+      <element name="locName" minOccurs="0"/>
+      <element name="intAddress" minOccurs="0"/>
+      <element name="locAddress" minOccurs="0"/>
+      <element name="voice" minOccurs="0"/>
+      <element name="fax" minOccurs="0"/>
+      <element name="email" minOccurs="0"/>
+      <element name="taxpayerNumbers" minOccurs="0"/>
+      <element name="birthday" minOccurs="0"/>
+      <element name="passport" minOccurs="0"/>
+    </sequence>
+    <attribute name="flag" type="boolean" use="required"/>
+  </complexType>
+  <!--
+    Child element of commands that require only an identifier.
+  -->
+  <complexType name="sIDType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child element of commands that accept multiple identifiers.
+  -->
+  <complexType name="mIDType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child elements of the <info> and <transfer> commands.
+  -->
+  <complexType name="authIDType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="authInfo" type="contact:authInfoType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child elements of the <info> command.
+  -->
+  <complexType name="infoType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="authInfo" type="contact:authInfoType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Data elements that can be added or removed.
+  -->
+  <complexType name="addRemType">
+    <sequence>
+      <element name="status" type="contact:statusType" maxOccurs="7"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child elements of the <update> command.
+  -->
+  <complexType name="updateType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="add" type="contact:addRemType" minOccurs="0"/>
+      <element name="rem" type="contact:addRemType" minOccurs="0"/>
+      <element name="chg" type="contact:chgType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Data elements that can be changed.
+  -->
+  <complexType name="chgOrganizationType">
+    <sequence>
+      <element name="intPostalInfo" type="contact:chgOrgIntPostalInfoType" minOccurs="0"/>
+      <element name="locPostalInfo" type="contact:chgOrgLocPostalInfoType" minOccurs="0"/>
+      <element name="legalInfo" type="contact:legalInfoType" minOccurs="0"/>
+      <element name="taxpayerNumbers" type="contact:taxpayerNumbersType" minOccurs="0"/>
+      <element name="voice" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="email" type="contact:chgEmailType" minOccurs="0" maxOccurs="15"/>
+      <element name="disclose" type="contact:orgDiscloseType" minOccurs="0"/>
+      <element name="additional" type="contact:dataType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgPersonType">
+    <sequence>
+      <element name="intPostalInfo" type="contact:chgPersonIntPostalInfoType" minOccurs="0"/>
+      <element name="locPostalInfo" type="contact:chgPersonLocPostalInfoType" minOccurs="0"/>
+      <element name="taxpayerNumbers" type="contact:taxpayerNumbersType" minOccurs="0"/>
+      <element name="birthday" type="date" minOccurs="0"/>
+      <element name="passport" type="contact:passportType" minOccurs="0" maxOccurs="15"/>
+      <element name="voice" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="fax" type="contact:chgPhoneType" minOccurs="0" maxOccurs="15"/>
+      <element name="email" type="contact:chgEmailType" minOccurs="0" maxOccurs="15"/>
+      <element name="disclose" type="contact:personDiscloseType" minOccurs="0"/>
+      <element name="additional" type="contact:dataType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgType">
+    <sequence>
+      <choice>
+        <element name="organization" type="contact:chgOrganizationType" minOccurs="0"/>
+        <element name="person" type="contact:chgPersonType" minOccurs="0"/>
+      </choice>
+      <choice minOccurs="0">
+        <element name="verified"/>
+        <element name="unverified"/>
+      </choice>
+      <element name="authInfo" type="contact:authInfoType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgPersonIntPostalInfoType">
+    <sequence>
+      <element name="name" type="contact:intPostalLineType" minOccurs="0"/>
+      <element name="address" type="contact:intAddressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgPersonLocPostalInfoType">
+    <sequence>
+      <element name="name" type="contact:postalLineType" minOccurs="0"/>
+      <element name="address" type="contact:addressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgOrgIntPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:intPostalLineType" minOccurs="0"/>
+      <element name="address" type="contact:intAddressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <complexType name="chgOrgLocPostalInfoType">
+    <sequence>
+      <element name="org" type="contact:postalLineType" minOccurs="0"/>
+      <element name="address" type="contact:addressType" minOccurs="0" maxOccurs="15"/>
+    </sequence>
+  </complexType>
+  <!--
+    Child response elements.
+  -->
+  <element name="chkData" type="contact:chkDataType"/>
+  <element name="creData" type="contact:creDataType"/>
+  <element name="infData" type="contact:infDataType"/>
+  <element name="trnData" type="contact:trnDataType"/>
+  <!--
+    <check> response elements.
+  -->
+  <complexType name="chkDataType">
+    <sequence>
+      <element name="cd" type="contact:checkType" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+  <complexType name="checkType">
+    <sequence>
+      <element name="id" type="contact:checkIDType"/>
+      <element name="reason" type="eppcom:reasonType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <complexType name="checkIDType">
+    <simpleContent>
+      <extension base="eppcom:clIDType">
+        <attribute name="avail" type="boolean" use="required"/>
+      </extension>
+    </simpleContent>
+  </complexType>
+  <!--
+    <create> response elements.
+  -->
+  <complexType name="creDataType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="crDate" type="dateTime"/>
+    </sequence>
+  </complexType>
+  <!--
+    <info> response elements.
+  -->
+  <complexType name="infDataType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="roid" type="eppcom:roidType"/>
+      <element name="status" type="contact:statusType" maxOccurs="7"/>
+      <choice>
+        <element name="organization" type="contact:chgOrganizationType"/>
+        <element name="person" type="contact:chgPersonType"/>
+      </choice>
+      <element name="clID" type="eppcom:clIDType"/>
+      <element name="crID" type="eppcom:clIDType"/>
+      <element name="crDate" type="dateTime"/>
+      <element name="upID" type="eppcom:clIDType" minOccurs="0"/>
+      <element name="upDate" type="dateTime" minOccurs="0"/>
+      <element name="trDate" type="dateTime" minOccurs="0"/>
+      <choice>
+        <element name="verified"/>
+        <element name="unverified"/>
+      </choice>
+      <element name="authInfo" type="contact:authInfoType" minOccurs="0"/>
+    </sequence>
+  </complexType>
+  <!--
+    Status is a combination of attributes and an optional human-readable
+    message that may be expressed in languages other than English.
+  -->
+  <complexType name="statusType">
+    <attribute name="s" type="contact:statusValueType" use="required"/>
+  </complexType>
+  <simpleType name="statusValueType">
+    <restriction base="token">
+      <enumeration value="clientDeleteProhibited"/>
+      <enumeration value="clientTransferProhibited"/>
+      <enumeration value="clientUpdateProhibited"/>
+      <enumeration value="linked"/>
+      <enumeration value="ok"/>
+      <enumeration value="pendingCreate"/>
+      <enumeration value="pendingDelete"/>
+      <enumeration value="pendingTransfer"/>
+      <enumeration value="pendingUpdate"/>
+      <enumeration value="serverDeleteProhibited"/>
+      <enumeration value="serverTransferProhibited"/>
+      <enumeration value="serverUpdateProhibited"/>
+    </restriction>
+  </simpleType>
+  <!--
+    <transfer> response elements.
+  -->
+  <complexType name="trnDataType">
+    <sequence>
+      <element name="id" type="eppcom:clIDType"/>
+      <element name="trStatus" type="eppcom:trStatusType"/>
+      <element name="reID" type="eppcom:clIDType"/>
+      <element name="reDate" type="dateTime"/>
+      <element name="acID" type="eppcom:clIDType"/>
+      <element name="acDate" type="dateTime"/>
+    </sequence>
+  </complexType>
+  <!--
+    End of schema.
+  -->
+</schema>
