@@ -1,11 +1,11 @@
 package xml
 
 import (
-    "fmt"
     "time"
     "bytes"
     . "registry/epp/eppcom"
     "encoding/xml"
+    "github.com/kpango/glg"
 )
 
 var XSI = "http://www.w3.org/2001/XMLSchema-instance"
@@ -231,7 +231,11 @@ func getCheckState(check_result *CheckResult) (string, string) {
 }
 
 func CheckDomainResponse(response *EPPResult) *ResDataS {
-    check_results := response.Content.([]CheckResult)
+    check_results, ok := response.Content.([]CheckResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
 
     domain_check := &DomainCheck{
         XMLNSDom:DOMAIN_NS,
@@ -250,7 +254,11 @@ func CheckDomainResponse(response *EPPResult) *ResDataS {
 }
 
 func DomainResponse(response *EPPResult) *ResDataS {
-    domain_data := response.Content.(*InfoDomainData)
+    domain_data, ok := response.Content.(*InfoDomainData)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     domain := &Domain{
         XMLNSDom:DOMAIN_NS,
         XMLNS:DOMAIN_NS,
@@ -280,7 +288,11 @@ func DomainResponse(response *EPPResult) *ResDataS {
 }
 
 func CreateDomainResponse(response *EPPResult) *ResDataS {
-    cre_data := response.Content.(*CreateDomainResult)
+    cre_data, ok := response.Content.(*CreateDomainResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     domain := &CreateDomainRes{
         XMLNSDom:DOMAIN_NS,
         XMLNS:DOMAIN_NS,
@@ -292,7 +304,11 @@ func CreateDomainResponse(response *EPPResult) *ResDataS {
 }
 
 func TransferDomainResponse(response *EPPResult) *ResDataS {
-    tr_data := response.Content.(*TransferRequestObject)
+    tr_data, ok := response.Content.(*TransferRequestObject)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     trn := &TransferResponse{
         XMLNSDom:DOMAIN_NS,
         XMLNS:DOMAIN_NS,
@@ -308,7 +324,11 @@ func TransferDomainResponse(response *EPPResult) *ResDataS {
 }
 
 func HostResponse(response *EPPResult) *ResDataS {
-    host_data := response.Content.(*InfoHostData)
+    host_data, ok := response.Content.(*InfoHostData)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     host := &Host{
         XMLNSDom:HOST_NS,
         XMLNS:HOST_NS,
@@ -331,7 +351,11 @@ func HostResponse(response *EPPResult) *ResDataS {
 }
 
 func CreateHostResponse(response *EPPResult) *ResDataS {
-    cre_data := response.Content.(*CreateObjectResult)
+    cre_data, ok := response.Content.(*CreateObjectResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     host := &CreateHostRes{
         XMLNSDom:HOST_NS,
         XMLNS:HOST_NS,
@@ -342,7 +366,11 @@ func CreateHostResponse(response *EPPResult) *ResDataS {
 }
 
 func ContactResponse(response *EPPResult) *ResDataS {
-    contact_data := response.Content.(*InfoContactData)
+    contact_data, ok := response.Content.(*InfoContactData)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     contact := &Contact{
         XMLNSDom:CONTACT_NS,
         XMLNS:CONTACT_NS,
@@ -387,7 +415,11 @@ func ContactResponse(response *EPPResult) *ResDataS {
 }
 
 func CreateContactResponse(response *EPPResult) *ResDataS {
-    cre_data := response.Content.(*CreateObjectResult)
+    cre_data, ok := response.Content.(*CreateObjectResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     contact := &CreateContactRes{
         XMLNSDom:CONTACT_NS,
         XMLNS:CONTACT_NS,
@@ -398,7 +430,11 @@ func CreateContactResponse(response *EPPResult) *ResDataS {
 }
 
 func PollReqResponse(response *EPPResult) *MsgQ {
-    poll_msg := response.Content.(*PollMessage)
+    poll_msg, ok := response.Content.(*PollMessage)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
     msg_q := &MsgQ{
         Count:poll_msg.Count,
         MsgId:poll_msg.Msgid,
@@ -426,29 +462,27 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
             }
         }
     } else {
-        if response.Content != nil {
-            switch response.CmdType {
-                case EPP_CHECK_DOMAIN:
-                    resp.ResData = CheckDomainResponse(response)
+        switch response.CmdType {
+            case EPP_CHECK_DOMAIN:
+                resp.ResData = CheckDomainResponse(response)
 
-                case EPP_INFO_DOMAIN:
-                    resp.ResData = DomainResponse(response)
-                case EPP_INFO_HOST:
-                    resp.ResData = HostResponse(response)
-                case EPP_INFO_CONTACT:
-                    resp.ResData = ContactResponse(response)
+            case EPP_INFO_DOMAIN:
+                resp.ResData = DomainResponse(response)
+            case EPP_INFO_HOST:
+                resp.ResData = HostResponse(response)
+            case EPP_INFO_CONTACT:
+                resp.ResData = ContactResponse(response)
 
-                case EPP_CREATE_DOMAIN:
-                    resp.ResData = CreateDomainResponse(response)
-                case EPP_CREATE_HOST:
-                    resp.ResData = CreateHostResponse(response)
-                case EPP_CREATE_CONTACT:
-                    resp.ResData = CreateContactResponse(response)
+            case EPP_CREATE_DOMAIN:
+                resp.ResData = CreateDomainResponse(response)
+            case EPP_CREATE_HOST:
+                resp.ResData = CreateHostResponse(response)
+            case EPP_CREATE_CONTACT:
+                resp.ResData = CreateContactResponse(response)
 
-                case EPP_TRANSFER_DOMAIN:
-                    resp.ResData = TransferDomainResponse(response)
+            case EPP_TRANSFER_DOMAIN:
+                resp.ResData = TransferDomainResponse(response)
 
-            }
         }
     }
 
@@ -464,7 +498,7 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     enc := xml.NewEncoder(w)
     enc.Indent(" ", " ")
     if err := enc.Encode(v); err != nil {
-        fmt.Println("error", err)
+        glg.Error("error", err)
     }
     return w.String()
 }
@@ -489,7 +523,7 @@ func GenerateGreeting() string {
     enc := xml.NewEncoder(w)
     enc.Indent("", " ")
     if err := enc.Encode(v); err != nil {
-        fmt.Println("error", err)
+        glg.Error("error", err)
     }
     return w.String()
 }
