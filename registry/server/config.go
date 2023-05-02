@@ -18,6 +18,7 @@ type DBConfig struct {
 
 type HTTPConfig struct {
     Host string
+    Port uint
     CertFile string
     KeyFile string
     UseProxy bool
@@ -129,7 +130,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
     }
 
     section, _ = cfg.GetSection("http")
-    params = []string {"host", "key_file", "cert_file", "nginx_proxy"}
+    params = []string {"host", "port", "key_file", "cert_file", "nginx_proxy"}
     for _,  val := range params {
         key, err := section.GetKey(val)
         if err != nil {
@@ -139,6 +140,11 @@ func (r *RegConfig) LoadConfig(config_path string)  {
         switch val {
             case "host":
                 r.HTTPConf.Host = key.String()
+            case "port":
+                r.HTTPConf.Port, err = key.Uint()
+                if err != nil {
+                    glg.Fatal(err)
+                }
             case "cert_file":
                 r.HTTPConf.CertFile = key.String()
             case "key_file":

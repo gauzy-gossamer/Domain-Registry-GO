@@ -103,11 +103,15 @@ func handle_root(w http.ResponseWriter, req *http.Request) {
 
 func main() {
     config_file := flag.String("config", "server.conf", "filename with config")
-    port := flag.Int("port", 8090, "port")
+    port := flag.Uint("port", 0, "port")
 
     flag.Parse()
 
     serv.RGconf.LoadConfig(*config_file)
+    if *port > 0 {
+        serv.RGconf.HTTPConf.Port = *port
+    }
+
     serv.Xml_parser.ReadSchema(serv.RGconf.SchemaPath)
     var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
@@ -125,7 +129,7 @@ func main() {
 
     go regrpc.StartgRPCServer(&serv)
 
-    host_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, *port)
+    host_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, serv.RGconf.HTTPConf.Port)
 
     httpserver := &http.Server{
         TLSConfig: &tls.Config{
