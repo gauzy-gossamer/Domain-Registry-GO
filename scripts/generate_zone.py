@@ -12,15 +12,23 @@ def get_ipaddr_class(ipaddr):
 
 # generate DNS zone records
 class ZoneGenerator():
-    def __init__(self, iterator, output_fd=sys.stdout):
+    def __init__(self, iterator, output_fd=sys.stdout, header=None):
         self.iterator = iterator
         self.fd = output_fd
+        self.headerfile = header
+
+    def write_header(self):
+        if self.headerfile is not None:
+            with open(self.headerfile, 'r') as f:
+                self.fd.write(f.read())
+                self.fd.write('; ---\n\n')
 
     def generate_soa(self):
         soa_record = self.iterator.get_soa_record()
         soa_record['hostmaster'] = soa_record['hostmaster'].replace('@', '.')
         ns = soa_record['nameservers'][0]['nsname']
         self.fd.write(f"$TTL {soa_record['ttl']} ;default TTL for all records in zone\n")
+        self.write_header()
         self.fd.write(f"{soa_record['zonename']}.\t\tIN\tSOA\t{ns}.\t{soa_record['hostmaster']}. (")
         self.fd.write(f"{soa_record['serial']} {soa_record['refresh']} {soa_record['update_retr']} ")
         self.fd.write(f"{soa_record['expiry']} {soa_record['min']})\n")
@@ -147,8 +155,9 @@ def run_checkzone(zone_filename, zone):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--zone',  type=str,   default=None)
-    parser.add_argument('--run-named-checkzone', dest='run_checkzone',action='store_true', default=False)
+    parser.add_argument('--zone',  type=str, default=None, help="only generate zone file for this zone")
+    parser.add_argument('--header',  type=str, default=None, help="prepend contents of this file to the zone")
+    parser.add_argument('--run-named-checkzone', dest='run_checkzone',action='store_true', default=False, help="run named-checkzone on generated zone file")
 
     args = parser.parse_args()
 
@@ -162,7 +171,7 @@ def main():
         zone_filename = '{}.db'.format(fqdn)
 
         with open(zone_filename, 'w') as f:
-            generator = ZoneGenerator(zone_iterator, output_fd=f)
+            generator = ZoneGenerator(zone_iterator, output_fd=f, header=args.header)
             generator.generate_soa()
             generator.generate_records()
 
