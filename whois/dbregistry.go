@@ -50,7 +50,7 @@ func getDomain(domainname string) (*Domain, error) {
         return nil, err
     }
 
-    query := "SELECT obr.name, crdate, exdate, " +
+    query := "SELECT obr.id, obr.name, crdate, exdate, " +
             "(((d.exdate + (SELECT val || ' day' FROM enum_parameters WHERE id = 6)::interval)::timestamp + (SELECT val || ' hours' FROM enum_parameters WHERE name = 'regular_day_procedure_period')::interval) AT TIME ZONE (SELECT val FROM enum_parameters WHERE name = 'regular_day_procedure_zone'))::timestamp as deletedate, " +
             "c.intpostal, c.verified, c.contact_type, r.handle, r.url, " +
             "exists(SELECT * FROM object_state WHERE object_id=d.id and valid_to is null and state_id = 17) as pendingdelete," +
@@ -68,7 +68,7 @@ func getDomain(domainname string) (*Domain, error) {
 
     row := dbconn.QueryRow(query, domainname)
 
-    err = row.Scan(&domain.Name, &domain.CrDate, &domain.ExDate, &domain.DeleteDate, &domain.IntPostal,
+    err = row.Scan(&domain.id, &domain.Name, &domain.CrDate, &domain.ExDate, &domain.DeleteDate, &domain.IntPostal,
                    &domain.Verified, &domain.CType, &domain.Registrar, &domain.Url, &domain.PendingDelete,
                    &domain.Inactive, &domain.TrRegistrar)
     if err != nil {
