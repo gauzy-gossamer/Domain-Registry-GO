@@ -46,6 +46,7 @@ func getHosts(db *server.DBConn, domainid uint64) ([]string, error) {
 
 func getDomain(domainname string) (*Domain, error) {
     dbconn, err := server.AcquireConn(serv.Pool)
+    defer dbconn.Close()
     if err != nil {
         return nil, err
     }
