@@ -4,25 +4,19 @@ import (
     "time"
     "fmt"
     "flag"
+    "net"
     "net/http"
     "log"
     "io"
     "io/ioutil"
     "strings"
+    "bufio"
     "whois/server"
     "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
 )
 
 var serv server.Server
-
-
-// {'handle': '153584275_DOMAIN_COM-VRSN', 'parent_handle': '', 'name': 'REDDIT.COM', 'whois_server': '', 'type': 'domain', 
-//'terms_of_service_url': 'https://www.verisign.com/domain-names/registration-data-access-protocol/terms-service/index.xhtml', 'copyright_notice': '', 
-///'description': [], 'last_changed_date': datetime.datetime(2022, 3, 28, 9, 30, 6, tzinfo=tzutc()), 'registration_date': datetime.datetime(2005, 4, 29, 17, 59, 19, tzinfo=tzutc()), 
-//'expiration_date': datetime.datetime(2024, 4, 29, 17, 59, 19, tzinfo=tzutc()), 'url': 'https://rdap.verisign.com/com/v1/domain/REDDIT.COM', 'rir': '', 
-//'entities': {'registrar': [{'handle': '292', 'type': 'entity', 'name': 'MarkMonitor Inc.'}], 'abuse': [{'type': 'entity', 'name': '', 'email': 'abusecomplaints@markmonitor.com'}]}, 
-//'nameservers': ['NS-1029.AWSDNS-00.ORG', 'NS-1887.AWSDNS-43.CO.UK', 'NS-378.AWSDNS-47.COM', 'NS-557.AWSDNS-05.NET'], 'status': ['client delete prohibited', 'client transfer prohibited', 'client update prohibited', 'server delete prohibited', 'server transfer prohibited', 'server update prohibited'], 'dnssec': False}
 
 func process_query(query string) (string, error) {
     domain_name := strings.TrimSpace(query)
@@ -69,6 +63,50 @@ func handle_root(w http.ResponseWriter, req *http.Request) {
     io.WriteString(w, whois_response)
 }
 
+func handleTCPRequest(conn net.Conn) {
+    defer conn.Close()
+    reader := bufio.NewReader(conn)
+
+    for {
+        request, err := reader.ReadString('\n')
+        if err != nil {
+            if err != io.EOF {
+                glg.Error("error: %v\n", err)
+            }
+            return
+        }
+
+        /* TODO validate input */
+
+        whois_response, err := process_query(request)
+        if err != nil {
+            glg.Error(err)
+            whois_response = "error"
+        }
+
+        if _, err := conn.Write([]byte(whois_response)); err != nil {
+            glg.Error(err)
+        }
+    }
+}
+
+func start_tcp_server(whois_addr string) {
+    listen, err := net.Listen("tcp", whois_addr)
+    if err != nil {
+        glg.Fatal(err)
+    }
+    defer listen.Close()
+
+    for {
+        conn, err := listen.Accept()
+        if err != nil {
+            glg.Error(err)
+            continue
+        }
+        go handleTCPRequest(conn)
+    }
+}
+
 func main() {
     config_file := flag.String("config", "server.conf", "filename with config")
     port := flag.Uint("port", 0, "port")
@@ -85,7 +123,12 @@ func main() {
         log.Fatal(err)
     }
 
-    host_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, serv.RGconf.HTTPConf.Port)
+    whois_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, serv.RGconf.HTTPConf.Port)
+
+    go start_tcp_server(whois_addr)
+
+    /* metrics */
+    host_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, 8083) //serv.RGconf.HTTPConf.Port)
 
     httpserver := &http.Server{
         Addr: host_addr,
