@@ -1,24 +1,25 @@
 package main
 
 import (
-    "time"
     "fmt"
     "flag"
     "net"
     "net/http"
     "log"
     "io"
-    "io/ioutil"
     "strings"
     "bufio"
     "whois/server"
     "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var serv server.Server
 
 func process_query(query string) (string, error) {
+    server.Queries.Inc()
+
     domain_name := strings.TrimSpace(query)
 
     whois_resp := WhoisResponse{Header:serv.RGconf.Header}
@@ -31,36 +32,6 @@ func process_query(query string) (string, error) {
         return "", err
     }
     return whois_resp.FormatDomain(domain), nil
-}
-
-func handle_root(w http.ResponseWriter, req *http.Request) {
-    if req.URL.Path != "/" {
-        http.NotFound(w, req)
-        return
-    }
-
-    query, err := ioutil.ReadAll(req.Body)
-    if err != nil {
-        io.WriteString(w, "error")
-        return
-    }
-
-    glg.Info(query)
-
-    start := time.Now()
-
-    whois_response, err := process_query(string(query))
-    if err != nil {
-        glg.Error(err)
-        io.WriteString(w, "error")
-        return
-    }
-
-    elapsed := time.Since(start)
-
-    glg.Trace("exec took ", elapsed)
-
-    io.WriteString(w, whois_response)
 }
 
 func handleTCPRequest(conn net.Conn) {
@@ -134,7 +105,7 @@ func main() {
         Addr: host_addr,
     }
 
-    http.HandleFunc("/", handle_root)
+    http.Handle("/metrics", promhttp.Handler())
 
     fmt.Println("server is running at", host_addr)
 

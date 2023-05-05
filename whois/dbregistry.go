@@ -46,10 +46,10 @@ func getHosts(db *server.DBConn, domainid uint64) ([]string, error) {
 
 func getDomain(domainname string) (*Domain, error) {
     dbconn, err := server.AcquireConn(serv.Pool)
-    defer dbconn.Close()
     if err != nil {
         return nil, err
     }
+    defer dbconn.Close()
 
     query := "SELECT obr.id, obr.name, crdate, exdate, " +
             "(((d.exdate + (SELECT val || ' day' FROM enum_parameters WHERE id = 6)::interval)::timestamp + (SELECT val || ' hours' FROM enum_parameters WHERE name = 'regular_day_procedure_period')::interval) AT TIME ZONE (SELECT val FROM enum_parameters WHERE name = 'regular_day_procedure_zone'))::timestamp as deletedate, " +
