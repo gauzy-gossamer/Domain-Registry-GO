@@ -1,7 +1,6 @@
 package main
 
 import (
-//  "os"
     "time"
     "fmt"
     "flag"
@@ -124,6 +123,7 @@ func main() {
     }
     defer dbconn.Close()
     serv.Sessions.MaxRegistrarSessions = serv.RGconf.MaxRegistrarSessions
+    serv.Sessions.MaxQueriesPerMinute = serv.RGconf.MaxQueriesPerMinute
     serv.Sessions.SessionTimeoutSec = serv.RGconf.SessionTimeout
     serv.Sessions.InitSessions(dbconn)
 

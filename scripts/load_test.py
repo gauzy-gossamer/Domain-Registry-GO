@@ -18,7 +18,8 @@ settings = {
 }
 
 def assert_retcode(result, code):
-    assert result['epp']['response']['result']['@code'] == code
+    if result['epp']['response']['result']['@code'] != code:
+        raise Exception(result['epp']['response']['result'])
 
 def id_generator(size=10, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))

@@ -4,6 +4,7 @@ import (
     "errors"
     "sync"
     "fmt"
+    "time"
     "github.com/jackc/pgx/v5"
     "github.com/jackc/pgtype"
     "github.com/kpango/glg"
@@ -18,12 +19,20 @@ type EPPSession struct {
     requests_limit int
 }
 
+type QueryLimitWindow struct {
+    queries uint /* number of queries */
+    started time.Time /* when the window started */
+}
+
 type EPPSessions struct {
+    MaxQueriesPerMinute uint
+
     MaxRegistrarSessions uint
     /* expire session after timeout */
     SessionTimeoutSec uint
 
     registrar_session_count map[uint]uint
+    registrar_queries_count map[uint]*QueryLimitWindow
     sessions map[uint64]EPPSession
 
     mu sync.Mutex
@@ -41,7 +50,8 @@ func (s *EPPSessions) InitSessions(db *DBConn) {
     if err != nil {
         panic(err)
     }
-    s.registrar_session_count = map[uint]uint{}
+    s.registrar_session_count = make(map[uint]uint)
+    s.registrar_queries_count = make(map[uint]*QueryLimitWindow)
     s.sessions = map[uint64]EPPSession{}
 
     for rows.Next() {
@@ -60,6 +70,29 @@ func (s *EPPSessions) InitSessions(db *DBConn) {
         }
 
     }
+}
+
+/* returns true if query limit per minute exceeded */
+func (s *EPPSessions) QueryLimitExceeded(regid uint) bool {
+    if s.MaxQueriesPerMinute == 0 {
+        return false
+    }
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    t_now := time.Now()
+
+    queries_data, ok := s.registrar_queries_count[regid]
+    /* if more than one minute passed, restart the window */
+    if !ok || t_now.Sub(queries_data.started) > time.Minute {
+        s.registrar_queries_count[regid] = &QueryLimitWindow{queries:1, started:t_now}
+        return false
+    }
+
+    queries_data.queries += 1
+    glg.Error(queries_data.queries)
+
+    return queries_data.queries > s.MaxQueriesPerMinute
 }
 
 func (s *EPPSessions) LoginSession(db *DBConn, regid uint, lang uint) (uint64, error) {

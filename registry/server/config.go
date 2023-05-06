@@ -28,6 +28,7 @@ type RegConfig struct {
     DBconf DBConfig
     HTTPConf HTTPConfig
     MaxRegistrarSessions uint
+    MaxQueriesPerMinute uint
     SessionTimeout uint
     DomainMinHosts int
     DomainMaxHosts int
@@ -92,7 +93,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
     }
     section, _ = cfg.GetSection("reg_server")
 
-    params = []string {"session_registrar_max", "domain_min_hosts", "domain_max_hosts", "schema_path", "epp_operations_charging", "session_timeout"}
+    params = []string {"session_registrar_max", "domain_min_hosts", "domain_max_hosts", "schema_path", "epp_operations_charging", "session_timeout", "query_limit"}
     for _,  val := range params {
         key, err := section.GetKey(val)
         if err != nil {
@@ -106,6 +107,11 @@ func (r *RegConfig) LoadConfig(config_path string)  {
                 }
             case "session_timeout":
                 r.SessionTimeout, err = key.Uint()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+            case "query_limit":
+                r.MaxQueriesPerMinute, err = key.Uint()
                 if err != nil {
                     glg.Fatal(err)
                 }

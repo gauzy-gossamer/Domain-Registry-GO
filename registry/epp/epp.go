@@ -53,6 +53,12 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
             return epp_result
         }
         Lang = ctx.session.Lang
+        if cmd.CmdType != EPP_LOGOUT && serv.Sessions.QueryLimitExceeded(ctx.session.Regid) {
+            glg.Info(ctx.session.Regid, " exceeded limit on queries")
+            epp_result := &EPPResult{CmdType:cmd.CmdType, RetCode:EPP_SESSION_LIMIT, Msg:"exceeded number of queries per minute"}
+            ResolveErrorMsg(ctx.dbconn, epp_result, Lang)
+            return epp_result
+        }
     }
 
     var epp_result *EPPResult
@@ -65,6 +71,7 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
             }
 
         case EPP_LOGOUT:
+            glg.Info("Logout", cmd.Sessionid)
             serv.Sessions.LogoutSession(dbconn, cmd.Sessionid)
             epp_result = &EPPResult{CmdType:EPP_LOGOUT, RetCode:EPP_CLOSING_LOGOUT}
         case EPP_CHECK_DOMAIN:
@@ -185,4 +192,3 @@ func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
     res.Content = &loginResult
     return &res
 }
-
