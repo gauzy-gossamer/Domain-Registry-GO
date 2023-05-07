@@ -79,12 +79,25 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
     defer ctx.dbconn.Rollback()
 
     create_contact := dbreg.NewCreateContactDB()
+    create_contact.SetIntPostal(v.Fields.IntPostal)
+    create_contact.SetIntAddress(v.Fields.IntAddress)
+    create_contact.SetLocPostal(v.Fields.LocPostal)
+    create_contact.SetLocAddress(v.Fields.LocAddress)
+
     create_contact.SetEmails(v.Fields.Emails)
     create_contact.SetVoice(v.Fields.Voice)
-    create_contact.SetFax(v.Fields.Fax)
-    create_contact.SetBirthday(v.Fields.Birthday)
-    create_contact.SetIntPostal(v.Fields.IntPostal)
-    create_contact.SetVerified(v.Fields.Verified)
+
+    if v.Fields.ContactType == CONTACT_ORG {
+        create_contact.SetFax(v.Fields.Fax)
+        create_contact.SetLegalAddress(v.Fields.LegalAddress)
+        create_contact.SetTaxNumbers(v.Fields.TaxNumbers)
+
+    } else {
+        create_contact.SetBirthday(v.Fields.Birthday)
+        create_contact.SetPassport(v.Fields.Passport)
+
+    }
+    create_contact.SetVerified(v.Fields.Verified.Get())
     create_result, err := create_contact.SetParams(contact_handle, ctx.session.Regid, v.Fields.ContactType).Exec(ctx.dbconn)
     if err != nil {
         glg.Error(err)
@@ -134,8 +147,9 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
         update_contact.SetFax(v.Fields.Fax)
     }
 */
-//  should be nullable
-//    create_contact.SetVerified(v.Fields.Verified)
+    if !v.Fields.Verified.IsNull() {
+        update_contact.SetVerified(v.Fields.Verified.Get())
+   }
 
     err := ctx.dbconn.Begin()
     if err != nil {

@@ -10,6 +10,7 @@ package tests
 import (
     "testing"
     "fmt"
+    "reflect"
     "registry/server"
     "registry/epp"
     "registry/epp/dbreg"
@@ -468,17 +469,42 @@ func TestEPPDomainTransfer(t *testing.T) {
     logoutSession(t, serv, dbconn, sessionid2)
 }
 
-func getCreateContact(contact_id string) *xml.CreateContact {
-    fields := ContactFields{
-        ContactId:contact_id,
-        IntPostal:"Company Inc",
-        Emails:[]string{"first@company.com"},
-        Voice:[]string{"+9 000 99999"},
-        Fax:[]string{},
-        ContactType:CONTACT_ORG,
-        Verified:false,
+func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
+    var fields ContactFields
+    if contact_type == CONTACT_ORG {
+        fields = ContactFields{
+            ContactId:contact_id,
+            IntPostal:"Company Inc",
+            LocPostal:"Company Inc",
+            LegalAddress:[]string{"address"},
+            Emails:[]string{"first@company.com"},
+            Voice:[]string{"+9 000 99999"},
+            Fax:[]string{},
+            ContactType:CONTACT_ORG,
+        }
+    } else {
+        fields = ContactFields{
+            ContactId:contact_id,
+            IntPostal:"Person",
+            LocPostal:"Person",
+            Emails:[]string{"first@company.com"},
+            Voice:[]string{"+9 000 99999"},
+            Birthday:"1998-01-01",
+            ContactType:CONTACT_PERSON,
+        }
     }
+
+    fields.Verified.Set(false)
     return &xml.CreateContact{Fields: fields}
+}
+
+func createContact(t *testing.T, serv *server.Server, create_contact *xml.CreateContact, retcode int, sessionid uint64) {
+    create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_CONTACT, Sessionid:sessionid}
+    create_cmd.Content = create_contact
+    epp_res := epp.ExecuteEPPCommand(serv, &create_cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg)
+    }
 }
 
 func TestEPPContact(t *testing.T) {
@@ -502,23 +528,44 @@ func TestEPPContact(t *testing.T) {
     info_contact := xml.InfoContact{Name:test_contact}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
-
     epp_res := epp.ExecuteEPPCommand(serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
 
-    test_handle := "TEST-" + server.GenerateRandString(8)
+    org_handle := "TEST-" + server.GenerateRandString(8)
+    create_org := getCreateContact(org_handle, CONTACT_ORG)
+    createContact(t, serv, create_org, EPP_OK, sessionid)
 
-    create_contact := getCreateContact(test_handle)
-    create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_CONTACT, Sessionid:sessionid}
-    create_cmd.Content = create_contact
-    epp_res = epp.ExecuteEPPCommand(serv, &create_cmd)
+    person_handle := "TEST-" + server.GenerateRandString(8)
+    create_contact := getCreateContact(person_handle, CONTACT_PERSON)
+    createContact(t, serv, create_contact, EPP_OK, sessionid)
+
+    info_contact = xml.InfoContact{Name:person_handle}
+    cmd = xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
+    cmd.Content = &info_contact
+    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
+    create_contact.Fields.ContactId = ""
+    info_return := epp_res.Content.(*InfoContactData).ContactFields
+    if !reflect.DeepEqual(create_contact.Fields, info_return) {
+        t.Error("create and info are not equal ", info_return, create_contact.Fields)
+    }
 
-    deleteObject(t, serv, test_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+    fields := ContactFields{ContactId:person_handle}
+    fields.Verified.Set(true)
+    update_contact := &xml.UpdateContact{Fields: fields}
+    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
+    update_cmd.Content = update_contact
+    epp_res = epp.ExecuteEPPCommand(serv, &update_cmd)
+    if epp_res.RetCode != EPP_OK {
+        t.Error("should be ", EPP_OK, epp_res.Msg)
+    }
+
+    deleteObject(t, serv, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+    deleteObject(t, serv, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
 
     logoutSession(t, serv, dbconn, sessionid)
 }

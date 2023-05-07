@@ -21,6 +21,7 @@ func (n *NullableVal) IsNull() bool {
     return n.null
 }
 
+/* method used by pgx Scan to set values */
 func (n *NullableVal) Scan(src interface{}) error {
     if src == nil {
         n.val = nil
@@ -52,5 +53,21 @@ func (n *NullableUint) Get() uint {
         default:
             return 0
 
+    }
+}
+
+type NullableBool struct {
+    NullableVal
+}
+
+func (n *NullableBool) Get() bool {
+    if n.null {
+        return false
+    }
+    switch n.val.(type) {
+        case bool:
+            return n.val.(bool)
+        default:
+            return false
     }
 }

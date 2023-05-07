@@ -287,7 +287,13 @@ func parseRenew(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
 func parseContactFields(ctx *xpath.Context, contact *ContactFields) {
     verified_nodes := len(xpath.NodeList(ctx.Find("contact:verified")))
-    contact.Verified = verified_nodes > 0
+    if verified_nodes > 0 {
+        contact.Verified.Set(true)
+    }
+    unverified_nodes := len(xpath.NodeList(ctx.Find("contact:unverified")))
+    if unverified_nodes > 0 {
+        contact.Verified.Set(false)
+    }
 
     nodes := xpath.NodeList(ctx.Find("contact:organization"))
     if len(nodes) == 0 {
@@ -303,13 +309,20 @@ func parseContactFields(ctx *xpath.Context, contact *ContactFields) {
 
     if contact.ContactType == CONTACT_ORG {
         contact.Fax = getElementList(ctx, "contact:fax")
+        contact.LegalAddress = getElementList(ctx, "contact:legalInfo/contact:address")
 
         contact.IntPostal = xpath.String(ctx.Find("contact:intPostalInfo/contact:org"))
+        contact.LocPostal = xpath.String(ctx.Find("contact:locPostalInfo/contact:org"))
+        contact.TaxNumbers = xpath.String(ctx.Find("contact:taxpayerNumbers"))
+
     } else {
         contact.IntPostal = xpath.String(ctx.Find("contact:intPostalInfo/contact:name"))
+        contact.LocPostal = xpath.String(ctx.Find("contact:locPostalInfo/contact:name"))
 
         contact.Birthday = xpath.String(ctx.Find("contact:birthday"))
     }
+    contact.IntAddress = getElementList(ctx, "contact:intPostalInfo/contact:address")
+    contact.LocAddress = getElementList(ctx, "contact:locPostalInfo/contact:address")
 
     contact.Emails = getElementList(ctx, "contact:email")
     contact.Voice = getElementList(ctx, "contact:voice")

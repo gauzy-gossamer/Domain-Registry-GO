@@ -10,10 +10,20 @@ type CreateContactDB struct {
     regid uint
     handle string
     contact_type int
+
     emails []string
     voice []string
     fax []string
+
     intpostal string
+    intaddress []string
+    locpostal string
+    locaddress []string
+
+    legaladdress []string
+    taxnumbers string
+
+    passport []string
     birthday string
     verified bool
 }
@@ -34,18 +44,48 @@ func (q *CreateContactDB) SetFax(fax []string) *CreateContactDB {
     return q
 }
 
+func (q *CreateContactDB) SetEmails(emails []string) *CreateContactDB {
+    q.emails = emails
+    return q
+}
+
 func (q *CreateContactDB) SetIntPostal(intpostal string) *CreateContactDB {
     q.intpostal = intpostal
     return q
 }
 
-func (q *CreateContactDB) SetBirthday(birthday string) *CreateContactDB {
-    q.birthday = birthday
+func (q *CreateContactDB) SetIntAddress(address []string) *CreateContactDB {
+    q.intaddress = address
     return q
 }
 
-func (q *CreateContactDB) SetEmails(emails []string) *CreateContactDB {
-    q.emails = emails
+func (q *CreateContactDB) SetLocPostal(locpostal string) *CreateContactDB {
+    q.locpostal = locpostal
+    return q
+}
+
+func (q *CreateContactDB) SetLocAddress(address []string) *CreateContactDB {
+    q.locaddress = address
+    return q
+}
+
+func (q *CreateContactDB) SetLegalAddress(address []string) *CreateContactDB {
+    q.legaladdress = address
+    return q
+}
+
+func (q *CreateContactDB) SetPassport(passport []string) *CreateContactDB {
+    q.passport = passport
+    return q
+}
+
+func (q *CreateContactDB) SetTaxNumbers(taxnumbers string) *CreateContactDB {
+    q.taxnumbers = taxnumbers
+    return q
+}
+
+func (q *CreateContactDB) SetBirthday(birthday string) *CreateContactDB {
+    q.birthday = birthday
     return q
 }
 
@@ -78,22 +118,28 @@ func (q *CreateContactDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
     }
 
     var params []any
-    cols := "INSERT INTO contact(id, contact_type, email, telephone, intpostal "
-    vals := "VALUES($1::integer, $2::integer, $3::jsonb, $4::jsonb, $5::text "
+    cols := "INSERT INTO contact(id, contact_type, email, telephone, intpostal, intaddress, locpostal, locaddress "
+    vals := "VALUES($1::integer, $2::integer, $3::jsonb, $4::jsonb, $5::text, $6::jsonb, $7::text, $8::jsonb "
     params = append(params, create_result.Id)
     params = append(params, q.contact_type)
     params = append(params, packJson(q.emails))
     params = append(params, packJson(q.voice))
     params = append(params, q.intpostal)
+    params = append(params, q.intaddress)
+    params = append(params, q.locpostal)
+    params = append(params, q.locaddress)
 
     if q.contact_type == CONTACT_ORG {
+        params = append(params, q.taxnumbers)
+        params = append(params, packJson(q.legaladdress))
         params = append(params, packJson(q.fax))
-        cols += ", fax)"
-        vals += ", $6::jsonb)"
+        cols += ", vat, legaladdress, fax)"
+        vals += ", $9::text, $10::jsonb, $11::jsonb)"
     } else {
+        params = append(params, packJson(q.passport))
         params = append(params, q.birthday)
-        cols += ", birthday)"
-        vals += ", $6::date)"
+        cols += ", passport, birthday)"
+        vals += ", $9::jsonb, $10::date)"
     }
 
     _, err = db.Exec(cols + vals, params...)
