@@ -44,12 +44,12 @@ func (s *EPPSessions) InitSessions(db *DBConn) {
 
     s.removeExpiredSessions(db)
 
-    rows, err := db.Query("SELECT clientid, regid, lang, last_access, logd_session_id, r.system, r.epp_requests_limit FROM epp_session eps " +
+    rows, err := db.Query("SELECT clientid, regid, lang, last_access AT TIME ZONE 'UTC', logd_session_id, r.system, r.epp_requests_limit FROM epp_session eps " +
                           "INNER JOIN registrar r ON eps.regid=r.id;")
-    defer rows.Close()
     if err != nil {
         panic(err)
     }
+    defer rows.Close()
     s.registrar_session_count = make(map[uint]uint)
     s.registrar_queries_count = make(map[uint]*QueryLimitWindow)
     s.sessions = map[uint64]EPPSession{}
@@ -58,7 +58,10 @@ func (s *EPPSessions) InitSessions(db *DBConn) {
         var session EPPSession
         var logdsessionid uint64
         var sessionid int64
-        rows.Scan(&sessionid, &session.Regid, &session.Lang, &session.last_access, &logdsessionid, &session.System, &session.requests_limit)
+        err = rows.Scan(&sessionid, &session.Regid, &session.Lang, &session.last_access, &logdsessionid, &session.System, &session.requests_limit)
+        if err != nil {
+            glg.Fatal(err)
+        }
         session.Sessionid = uint64(sessionid)
 
         s.sessions[session.Sessionid] = session
@@ -90,7 +93,6 @@ func (s *EPPSessions) QueryLimitExceeded(regid uint) bool {
     }
 
     queries_data.queries += 1
-    glg.Error(queries_data.queries)
 
     return queries_data.queries > s.MaxQueriesPerMinute
 }
@@ -107,8 +109,12 @@ func (s *EPPSessions) LoginSession(db *DBConn, regid uint, lang uint) (uint64, e
         }
     }
     var sessionid int64
-    row := db.QueryRow("INSERT INTO epp_session(login_date, last_access, lang, regid) VALUES(now(), now(), $1::integer, $2::integer) returning clientid", lang, regid)
-    row.Scan(&sessionid)
+    row := db.QueryRow("INSERT INTO epp_session(login_date, last_access, lang, regid) " +
+                       "VALUES(now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC', $1::integer, $2::integer) returning clientid", lang, regid)
+    err := row.Scan(&sessionid)
+    if err != nil {
+        return 0, err
+    }
 
     s.sessions[uint64(sessionid)] = EPPSession{Sessionid:uint64(sessionid), Lang:lang, Regid:regid}
 
@@ -123,11 +129,12 @@ func (s *EPPSessions) LoginSession(db *DBConn, regid uint, lang uint) (uint64, e
 }
 
 func (s *EPPSessions) CheckSession(db *DBConn, sessionid uint64) *EPPSession {
-    row := db.QueryRow("SELECT lang, regid, logd_session_id, r.system, r.epp_requests_limit FROM epp_session eps "+
+    row := db.QueryRow("SELECT lang, regid, logd_session_id, last_access AT TIME ZONE 'UTC', r.system, r.epp_requests_limit, now() AT TIME ZONE 'UTC' FROM epp_session eps "+
                        "INNER JOIN registrar r ON eps.regid=r.id WHERE clientid = $1::bigint", int64(sessionid))
     var logsessionid int
+    var t_now pgtype.Timestamp
     session := EPPSession{Sessionid:sessionid}
-    err := row.Scan(&session.Lang, &session.Regid, &logsessionid, &session.System, &session.requests_limit)
+    err := row.Scan(&session.Lang, &session.Regid, &logsessionid, &session.last_access, &session.System, &session.requests_limit, &t_now)
     if err != nil {
         if err != pgx.ErrNoRows {
             glg.Error(err, session.Regid)
@@ -135,13 +142,16 @@ func (s *EPPSessions) CheckSession(db *DBConn, sessionid uint64) *EPPSession {
         return nil
     }
 
-    s.updateSessionTimer(db, sessionid)
+    /* we don't need to update last_access every query, only update if the difference is more than 1 second */
+    if session.last_access.Status == pgtype.Null || (t_now.Status != pgtype.Null && t_now.Time.Sub(session.last_access.Time) > time.Second) {
+        s.updateSessionTimer(db, sessionid)
+    }
 
     return &session
 }
 
 func (s *EPPSessions) updateSessionTimer(db *DBConn, sessionid uint64) {
-    _, err := db.Exec("UPDATE epp_session SET last_access = now() WHERE clientid = $1::bigint", int64(sessionid))
+    _, err := db.Exec("UPDATE epp_session SET last_access = now() AT TIME ZONE 'UTC' WHERE clientid = $1::bigint", int64(sessionid))
     if err != nil {
         glg.Error(err)
     }
@@ -181,7 +191,8 @@ func (s *EPPSessions) logoutSessionLockFree(db *DBConn, sessionid uint64) error 
 }
 
 func (s *EPPSessions) removeExpiredSessions(db *DBConn) {
-    rows, err := db.Query(fmt.Sprintf("SELECT clientid FROM epp_session WHERE last_access < now() - interval '%d seconds'", s.SessionTimeoutSec))
+    rows, err := db.Query(fmt.Sprintf("SELECT clientid FROM epp_session " +
+                    "WHERE last_access < now() AT TIME ZONE 'UTC' - interval '%d seconds'", s.SessionTimeoutSec))
     defer rows.Close()
     if err != nil {
         glg.Error(err)
