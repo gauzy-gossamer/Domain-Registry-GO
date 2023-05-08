@@ -3,17 +3,19 @@ package server
 import (
     "os"
     "bufio"
+    "reflect"
+    "errors"
 
     "github.com/go-ini/ini"
     "github.com/kpango/glg"
 )
 
 type DBConfig struct {
-    host     string
-    port     int
-    user     string
-    password string
-    dbname   string
+    Host     string
+    Port     int
+    User     string
+    Password string
+    DBname   string
 }
 
 type HTTPConfig struct {
@@ -46,6 +48,76 @@ var LogLevelMap = map[string]glg.LEVEL {
     "FATAL":glg.FATAL,
 }
 
+type ConfigVal struct {
+    Field string
+    Name string
+    Default any
+    Required bool
+}
+
+func setField(v interface{}, name string, value any) error {
+    fv := reflect.ValueOf(v).Elem().FieldByName(name)
+
+    switch value := value.(type) {
+        case string:
+            fv.SetString(value)
+        case uint:
+            fv.SetUint(uint64(value))
+        case int:
+            fv.SetInt(int64(value))
+        case bool:
+            fv.SetBool(value)
+        default:
+            return errors.New("unknown type")
+    }
+    return nil
+}
+
+func parseSection(cfg *ini.File, section_name string, set_to interface{}, params []ConfigVal) {
+    section, _ := cfg.GetSection(section_name)
+
+    for _,  val := range params {
+        key, err := section.GetKey(val.Name)
+        if err != nil && val.Required {
+            glg.Fatal(err)
+        }
+        switch val.Default.(type) {
+            case int:
+                kval, err := key.Int()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                err = setField(set_to, val.Field, kval)
+                if err != nil {
+                    glg.Fatal(err)
+                }
+            case uint:
+                kval, err := key.Uint()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                err = setField(set_to, val.Field, kval)
+                if err != nil {
+                    glg.Fatal(err)
+                }
+            case bool:
+                kval, err := key.Bool()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                err = setField(set_to, val.Field, kval)
+                if err != nil {
+                    glg.Fatal(err)
+                }
+            case string:
+                err = setField(set_to, val.Field, key.String())
+                if err != nil {
+                    glg.Fatal(err)
+                }
+        }
+    }
+}
+
 func (r *RegConfig) LoadConfig(config_path string)  {
     file, err := os.Open(config_path)
     if err != nil {
@@ -67,109 +139,43 @@ func (r *RegConfig) LoadConfig(config_path string)  {
     if err != nil {
         glg.Fatal(err)
     }
-    section, _ := cfg.GetSection("database")
 
-    params := []string {"host", "port", "user", "password", "name"}
-    for _,  val := range params {
-        key, err := section.GetKey(val)
-        if err != nil {
-            glg.Fatal(err)
-        }
-        switch val {
-            case "host":
-                r.DBconf.host = key.String()
-            case "port":
-                r.DBconf.port, err = key.Int()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "password":
-                r.DBconf.password = key.String()
-            case "name":
-                r.DBconf.dbname = key.String()
-            case "user":
-                r.DBconf.user = key.String()
-        }
-    }
-    section, _ = cfg.GetSection("reg_server")
+    parseSection(cfg, "database", &r.DBconf, []ConfigVal {
+        {"Host", "host", "", true},
+        {"Port", "port", 0, true},
+        {"Password", "password", "", true},
+        {"DBname", "name", "", true},
+        {"User", "user", "", true},
+    })
 
-    params = []string {"session_registrar_max", "domain_min_hosts", "domain_max_hosts", "schema_path", "epp_operations_charging", "session_timeout", "query_limit"}
-    for _,  val := range params {
-        key, err := section.GetKey(val)
-        if err != nil {
-            glg.Fatal(err)
-        }
-        switch val {
-            case "session_registrar_max":
-                r.MaxRegistrarSessions, err = key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "session_timeout":
-                r.SessionTimeout, err = key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "query_limit":
-                r.MaxQueriesPerMinute, err = key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "domain_min_hosts":
-                r.DomainMinHosts, err = key.Int()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "domain_max_hosts":
-                r.DomainMaxHosts, err = key.Int()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "schema_path":
-                r.SchemaPath = key.String()
-            case "epp_operations_charging":
-                r.ChargeOperations, err = key.Bool()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-        }
-    }
+    parseSection(cfg, "reg_server", r, []ConfigVal {
+        {"MaxRegistrarSessions", "session_registrar_max", uint(0), true},
+        {"SessionTimeout", "session_timeout", uint(0), true},
+        {"MaxQueriesPerMinute", "query_limit", uint(0), false},
+        {"DomainMinHosts", "domain_min_hosts", 0, true},
+        {"DomainMaxHosts", "domain_max_hosts", 0, true},
+        {"SchemaPath", "schema_path", "", true},
+        {"ChargeOperations", "epp_operations_charging", false, true},
+    })
 
-    section, _ = cfg.GetSection("http")
-    params = []string {"host", "port", "key_file", "cert_file", "nginx_proxy"}
-    for _,  val := range params {
-        key, err := section.GetKey(val)
-        if err != nil {
-            glg.Error(err)
-            continue
-        }
-        switch val {
-            case "host":
-                r.HTTPConf.Host = key.String()
-            case "port":
-                r.HTTPConf.Port, err = key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "cert_file":
-                r.HTTPConf.CertFile = key.String()
-            case "key_file":
-                r.HTTPConf.KeyFile = key.String()
-            case "nginx_proxy":
-                r.HTTPConf.UseProxy, err = key.Bool()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-        }
-    }
+    parseSection(cfg, "http", &r.HTTPConf, []ConfigVal {
+        {"Host", "host", "", true},
+        {"Port", "port", uint(0), true},
+        {"CertFile", "cert_file", "", false},
+        {"KeyFile", "key_file", "", false},
+        {"UseProxy", "nginx_proxy", false, false},
+    })
+
+    parseSection(cfg, "grpc", r, []ConfigVal {
+        {"GrpcPort", "port", 0, true},
+    })
 
     /* needs support for syslog */
-    section, _ = cfg.GetSection("log")
-    params = []string {"file", "level"}
+    section, _ := cfg.GetSection("log")
+    params := []string {"file", "level"}
     for _,  val := range params {
         key, err := section.GetKey(val)
         if err != nil {
-//           check required fields 
             glg.Error(err)
             continue
         }
@@ -187,23 +193,6 @@ func (r *RegConfig) LoadConfig(config_path string)  {
                     glg.Fatal("unknown log level", loglevel)
                 } else {
                     glg.Get().SetLevel(loglevel_)
-                }
-        }
-    }
-
-    section, _ = cfg.GetSection("grpc")
-    params = []string {"port"}
-    for _,  val := range params {
-        key, err := section.GetKey(val)
-        if err != nil {
-            glg.Error(err)
-            continue
-        }
-        switch val {
-            case "port":
-                r.GrpcPort, err = key.Int()
-                if err != nil {
-                    glg.Fatal(err)
                 }
         }
     }

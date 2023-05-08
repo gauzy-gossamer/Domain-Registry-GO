@@ -12,7 +12,7 @@ import (
 func CreatePool(dbconf *DBConfig) (*pgxpool.Pool, error) {
     psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
         "password=%s dbname=%s sslmode=disable",
-        dbconf.host, dbconf.port, dbconf.user, dbconf.password, dbconf.dbname)
+        dbconf.Host, dbconf.Port, dbconf.User, dbconf.Password, dbconf.DBname)
 //   use more specific config ?
 //    config, err := pgxpool.ParseConfig(psqlInfo)
 //    config.MaxConns = 64
@@ -87,7 +87,10 @@ func (d *DBConn) Commit() error {
 func (d *DBConn) Rollback() {
     if d.tx != nil {
         glg.Trace("rollback transaction")
-        d.tx.Rollback(d.ctx)
+        err := d.tx.Rollback(d.ctx)
+        if err != nil {
+            glg.Error(err)
+        }
         d.tx = nil
     }
 }
