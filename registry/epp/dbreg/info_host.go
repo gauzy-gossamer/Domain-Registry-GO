@@ -57,7 +57,7 @@ func (q *InfoHostDB) create_info_query() string {
     return info_host_query
 }
 
-func (q *InfoHostDB) set_lock(lock bool) *InfoHostDB {
+func (q *InfoHostDB) SetLock(lock bool) *InfoHostDB {
     q.lock_ = lock
     return q
 }

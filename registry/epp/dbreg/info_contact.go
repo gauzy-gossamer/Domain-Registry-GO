@@ -29,7 +29,8 @@ func (q *InfoContactDB) create_info_query() string {
         " , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id " +
         " , upr.handle AS upd_registrar_handle " +
         " , c.contact_type, c.email, c.telephone, c.fax, c.verified " +
-        " , c.birthday::text, c.intpostal " +
+        " , c.birthday::text, c.vat, c.intpostal, c.locpostal " +
+        " , c.locaddress, c.intaddress, c.legaladdress " +
         " , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created " +
         " , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time " +
         " , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time " /*+
@@ -61,7 +62,7 @@ func (q *InfoContactDB) create_info_query() string {
     return info_host_query
 }
 
-func (q *InfoContactDB) set_lock(lock bool) *InfoContactDB {
+func (q *InfoContactDB) SetLock(lock bool) *InfoContactDB {
     q.lock_ = lock
     return q
 }
@@ -77,12 +78,14 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
     row := db.QueryRow(info_query, q.params["name"])
     var data InfoContactData
 
-    var email, telephone, fax, birthday pgtype.Text
+    var email, telephone, fax, birthday, taxnumbers pgtype.Text
+    var locaddress, intaddress, legaladdress pgtype.Text
 
     err := row.Scan(&data.Id, &data.Roid, &data.Name,
                     &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,
                     &data.Create_registrar.Id, &data.Create_registrar.Handle, &data.Update_registrar.Id, &data.Update_registrar.Handle,
-                    &data.ContactType, &email, &telephone, &fax, &data.Verified, &birthday, &data.IntPostal,
+                    &data.ContactType, &email, &telephone, &fax, &data.Verified, &birthday, &taxnumbers, &data.IntPostal, &data.LocPostal,
+                    &locaddress, &intaddress, &legaladdress,
                     &data.Creation_time, &data.Transfer_time, &data.Update_time)
 
     if err != nil {
@@ -91,6 +94,13 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
     if birthday.Status != pgtype.Null {
         data.Birthday = birthday.String
     }
+    if taxnumbers.Status != pgtype.Null {
+        data.TaxNumbers = taxnumbers.String
+    }
+
+    data.LocAddress = unpackJson(locaddress)
+    data.IntAddress = unpackJson(intaddress)
+    data.LegalAddress = unpackJson(legaladdress)
 
     data.Emails = unpackJson(email)
     data.Voice = unpackJson(telephone)

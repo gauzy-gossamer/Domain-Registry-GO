@@ -9,9 +9,9 @@ import (
     "github.com/kpango/glg"
 )
 
-func get_contact_object(ctx *EPPContext, contact_handle string) (*InfoContactData, *ObjectStates, *EPPResult) {
+func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool) (*InfoContactData, *ObjectStates, *EPPResult) {
     info_db := dbreg.NewInfoContactDB()
-    contact_data, err := info_db.SetName(contact_handle).Exec(ctx.dbconn)
+    contact_data, err := info_db.SetLock(for_update).SetName(contact_handle).Exec(ctx.dbconn)
     if err != nil {
         if err == pgx.ErrNoRows {
             return nil, nil, &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
@@ -23,6 +23,13 @@ func get_contact_object(ctx *EPPContext, contact_handle string) (*InfoContactDat
     if !ctx.session.System {
         if contact_data.Sponsoring_registrar.Id.Get() != ctx.session.Regid {
             return nil, nil, &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
+        }
+    }
+
+    if for_update {
+        if err := UpdateObjectStates(ctx.dbconn, contact_data.Id); err != nil {
+            glg.Error(err)
+            return nil,nil, &EPPResult{RetCode:EPP_FAILED}
         }
     }
 
@@ -38,7 +45,7 @@ func get_contact_object(ctx *EPPContext, contact_handle string) (*InfoContactDat
 func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoContact) (*EPPResult) {
     glg.Info("Info contact", v.Name)
     contact_handle := strings.ToLower(v.Name)
-    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle)
+    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, false)
     if cmd != nil {
         return cmd
     }
@@ -118,7 +125,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
 func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult) {
     contact_handle := strings.ToLower(v.Fields.ContactId)
     glg.Info("Update contact", contact_handle)
-    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle)
+    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, true)
     if cmd != nil {
         return cmd
     }
@@ -177,7 +184,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
 func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     contact_handle := strings.ToLower(v.Name)
     glg.Info("Delete contact", contact_handle)
-    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle)
+    contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, true)
     if cmd != nil {
         return cmd
     }
