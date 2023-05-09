@@ -111,12 +111,22 @@ const (
 type ContactFields struct {
     ContactId string
     IntPostal string
+    IntAddress []string
+    LocPostal string
+    LocAddress []string
+
+    LegalAddress []string
+    TaxNumbers string
+
+    Passport []string
+    Birthday string
+
     Emails []string
     Voice []string
     Fax []string
-    Birthday string
+
     ContactType int
-    Verified bool
+    Verified NullableBool
 }
 
 type InfoContactData struct {

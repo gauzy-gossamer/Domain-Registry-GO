@@ -401,7 +401,7 @@ func ContactResponse(response *EPPResult) *ResDataS {
         contact.ContactData = person_data
     }
 
-    if contact_data.Verified {
+    if contact_data.Verified.Get() {
         contact.Verified = &VerifiedField{}
     } else {
         contact.Verified = &UnverifiedField{}
