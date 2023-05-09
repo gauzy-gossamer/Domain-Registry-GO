@@ -121,6 +121,29 @@ func isDomainAvailable(db *server.DBConn, domain string) (bool, error) {
     return isHandleAvailable(db, domain, "domain")
 }
 
+/* check if the host is subordinate to any of the zones available to registrar */
+func isHostSubordinate(db *server.DBConn, host string, regid uint) (bool, error) {
+    host = strings.ToLower(host)
+    zones, err := getRegistrarZones(db, regid)
+    if err != nil {
+        return false, err
+    }
+
+    for _, zone := range zones {
+        zone_parts := strings.Split(zone, ".")
+        parts := strings.Split(host, ".")
+        if len(zone_parts) > len(parts) {
+            continue
+        }
+        host_zone := strings.Join(parts[len(parts)-len(zone_parts):], ".") 
+        if zone == host_zone {
+            return true, nil
+        }
+
+    }
+    return false, nil
+}
+
 func checkIPAddresses(addrs []string) error {
     check_duplicates := make(map[string]bool)
     for _, ipaddr := range addrs {

@@ -15,7 +15,7 @@ func hostRegistrarHandle(handle string, regid uint) string {
 
 func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*InfoHostData, *ObjectStates, *EPPResult) {
     info_db := dbreg.NewInfoHostDB()
-    host_data, err := info_db.Set_fqdn(host_handle).Exec(ctx.dbconn)
+    host_data, err := info_db.SetLock(for_update).Set_fqdn(host_handle).Exec(ctx.dbconn)
     if err != nil {
         if err == pgx.ErrNoRows {
             return nil, nil, &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
@@ -86,11 +86,21 @@ func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
-    if err = checkIPAddresses(v.Addr) ; err != nil {
-        if perr, ok := err.(*dbreg.ParamError); ok {
-            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
+    if len(v.Addr) > 0 {
+        if ok, err := isHostSubordinate(ctx.dbconn, host_name, ctx.session.Regid); !ok || err != nil  {
+            if err != nil {
+                glg.Error(err)
+                return &EPPResult{RetCode:EPP_FAILED}
+            }
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"host is not subordinate to any registrar zones"}}
+        }
+        if err = checkIPAddresses(v.Addr) ; err != nil {
+            if perr, ok := err.(*dbreg.ParamError); ok {
+                return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
+            }
         }
     }
+
     err = ctx.dbconn.Begin()
     if err != nil {
         glg.Error(err)
@@ -135,6 +145,13 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
 
     var err error
     if len(v.AddAddrs) > 0 {
+        if ok, err := isHostSubordinate(ctx.dbconn, host_name, ctx.session.Regid); !ok || err != nil  {
+            if err != nil {
+                glg.Error(err)
+                return &EPPResult{RetCode:EPP_FAILED}
+            }
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"host is not subordinate to any registrar zones"}}
+        }
         if err = checkIPAddresses(v.AddAddrs) ; err != nil {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
