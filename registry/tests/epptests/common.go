@@ -14,9 +14,10 @@ func prepareServer() *server.Server {
     var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {
-
+        panic(err)
     }
     serv.Sessions.SessionTimeoutSec = serv.RGconf.SessionTimeout
+    serv.Sessions.MaxRegistrarSessions = serv.RGconf.MaxRegistrarSessions
 
     return &serv
 }
@@ -34,7 +35,7 @@ func getRegistrarAndZone(db *server.DBConn, exclude_reg uint) (uint, string, str
 
 func fakeSession(t *testing.T, serv *server.Server, db *server.DBConn, regid uint) uint64 {
     serv.Sessions.InitSessions(db)
-    sessionid, err := serv.Sessions.LoginSession(db, regid, 1)
+    sessionid, err := serv.Sessions.LoginSession(db, regid, LANG_EN)
     if err != nil {
         t.Error("failed login session")
     }
@@ -86,13 +87,13 @@ func deleteObject(t *testing.T, serv *server.Server, name string, cmdtype int, r
     }
 }
 
-func createHost(t *testing.T, serv *server.Server, name string,  sessionid uint64) {
-    create_host := xml.CreateHost{Name:name}
+func createHost(t *testing.T, serv *server.Server, name string, ips []string, retcode int, sessionid uint64) {
+    create_host := xml.CreateHost{Name:name, Addr:ips}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_HOST, Sessionid:sessionid}
     create_cmd.Content = &create_host
     epp_res := epp.ExecuteEPPCommand(serv, &create_cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ok", epp_res.RetCode)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
 }
 

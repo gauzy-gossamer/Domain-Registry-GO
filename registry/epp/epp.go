@@ -72,7 +72,10 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
 
         case EPP_LOGOUT:
             glg.Info("Logout", cmd.Sessionid)
-            serv.Sessions.LogoutSession(dbconn, cmd.Sessionid)
+            err = serv.Sessions.LogoutSession(dbconn, cmd.Sessionid)
+            if err != nil {
+                return &EPPResult{RetCode:EPP_FAILED}
+            }
             epp_result = &EPPResult{CmdType:EPP_LOGOUT, RetCode:EPP_CLOSING_LOGOUT}
         case EPP_CHECK_DOMAIN:
             if v, ok := cmd.Content.(*xml.CheckObject) ; ok {
@@ -152,17 +155,20 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
     return epp_result
 }
 
-func authenticateRegistrar(db *server.DBConn, regid uint, v *xml.EPPLogin) bool {
+func authenticateRegistrar(db *server.DBConn, regid uint, v *xml.EPPLogin) (bool, error) {
     var cert string
     glg.Info("authenticate", regid, v.Fingerprint, v.PW)
-    row := db.QueryRow("SELECT cert, password FROM registraracl " +
+    row := db.QueryRow("SELECT cert FROM registraracl " +
                        "WHERE registrarid = $1::integer and cert = $2::text and password = $3::text", regid, v.Fingerprint, v.PW)
     err := row.Scan(&cert)
 
-    if err == pgx.ErrNoRows {
-        return false
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            return false, nil
+        }
+        return false, err
     }
-    return true
+    return true, nil
 }
 
 func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
@@ -174,11 +180,19 @@ func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
     row := ctx.dbconn.QueryRow("SELECT id, system, epp_requests_limit" +
                                " FROM registrar WHERE handle = $1::text", v.Clid)
     err := row.Scan(&id, &system, &requests)
-    if err == pgx.ErrNoRows {
-        return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
+        }
+        glg.Error(err)
+        return &EPPResult{RetCode:EPP_FAILED}
     }
-    if !authenticateRegistrar(ctx.dbconn, id, v) {
-        return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
+    if ok, err := authenticateRegistrar(ctx.dbconn, id, v); !ok || err != nil {
+        if !ok {
+            return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
+        }
+        glg.Error(err)
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     sessionid, err := ctx.serv.Sessions.LoginSession(ctx.dbconn, id, v.Lang)
