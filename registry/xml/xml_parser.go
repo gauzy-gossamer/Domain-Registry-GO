@@ -55,7 +55,10 @@ func (s *XMLParser) ReadSchema(schema_path string) {
         change_path := schema_path[:last_i]
         filename = schema_path[last_i+1:]
         cur_path, _ = os.Getwd()
-        os.Chdir(change_path)
+        err := os.Chdir(change_path)
+        if err != nil {
+            glg.Fatal(err)
+        }
     }
     file, err := os.Open(filename)
     if err != nil {
@@ -80,7 +83,10 @@ func (s *XMLParser) ReadSchema(schema_path string) {
     s.schema = schema
 
     if cur_path != "" {
-        os.Chdir(cur_path)
+        err = os.Chdir(cur_path)
+        if err != nil {
+            glg.Fatal(err)
+        }
     }
 }
 
@@ -520,7 +526,6 @@ func parseCommand(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
             cmd = &XMLCommand{CmdType: EPP_LOGOUT}
         default:
             cmd = &XMLCommand{CmdType: EPP_UNKNOWN_ERR}
-            break
     }
 
     if err != nil {

@@ -193,20 +193,23 @@ func (s *EPPSessions) logoutSessionLockFree(db *DBConn, sessionid uint64) error 
 func (s *EPPSessions) removeExpiredSessions(db *DBConn) {
     rows, err := db.Query(fmt.Sprintf("SELECT clientid FROM epp_session " +
                     "WHERE last_access < now() AT TIME ZONE 'UTC' - interval '%d seconds'", s.SessionTimeoutSec))
-    defer rows.Close()
     if err != nil {
         glg.Error(err)
         return
     }
+    defer rows.Close()
     var expired_sessions []int64
     for rows.Next() {
         var sessionid int64
-        rows.Scan(&sessionid)
+        err = rows.Scan(&sessionid)
+        if err != nil {
+            glg.Error(err)
+            return
+        }
         expired_sessions = append(expired_sessions, sessionid)
     }
 
     for _, sessionid := range expired_sessions {
-        glg.Error("remove", sessionid)
         if _, ok := s.sessions[uint64(sessionid)]; ok {
             s.logoutSessionLockFree(db, uint64(sessionid))
         } else {

@@ -14,8 +14,7 @@ var zone_checks = map[string]func(string) bool {
 }
 
 func ConvertIDNA(domain string) (string, error) {
-    var p *idna.Profile
-    p = idna.New()
+    p := idna.New()
     return p.ToUnicode(domain)
 }
 

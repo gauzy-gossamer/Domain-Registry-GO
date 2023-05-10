@@ -97,10 +97,10 @@ func GetDomainHosts(db *server.DBConn, domainid uint64) ([]HostObj, error) {
     var hosts []HostObj
 
     rows, err := db.Query("SELECT h.hostid, fqdn FROM domain_host_map dh INNER JOIN host h ON dh.hostid=h.hostid WHERE domainid=$1;", domainid)
-    defer rows.Close()
     if err != nil {
         return nil, err
     }
+    defer rows.Close()
 
     for rows.Next() {
         var host HostObj

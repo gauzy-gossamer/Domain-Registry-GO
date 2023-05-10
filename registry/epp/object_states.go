@@ -87,11 +87,10 @@ func getObjectStates(db *server.DBConn, object_id uint64) (*ObjectStates, error)
                 " AND (os.valid_to IS NULL OR os.valid_to > CURRENT_TIMESTAMP) " +
         " ORDER BY eos.importance "
     rows, err := db.Query(query, object_id)
-    defer rows.Close()
-
     if err != nil {
         return nil, err
     }
+    defer rows.Close()
 
     var states ObjectStates
 
@@ -140,4 +139,39 @@ func getClientObjectStates(db *server.DBConn, states []string, object_type strin
     }
 
     return state_ids, nil
+}
+
+func updateObjectClientStates(ctx *EPPContext, object_id uint64, cur_states *ObjectStates, add_states_ []string, rem_states_ []string) error {
+    add_states, err := getClientObjectStates(ctx.dbconn, add_states_, "domain")
+    if err != nil {
+        return err
+    }
+
+    rem_states, err := getClientObjectStates(ctx.dbconn, rem_states_, "domain")
+    if err != nil {
+        return err
+    }
+
+    /* some states prohibit update operations, so we can remove from cur_states,
+    so that we can proceed after state checks
+    on the other hand if we are setting these states, we allow updating other fields within the same operation
+    */
+    for state_name, state_id := range add_states {
+        if cur_states.hasState(state_id) {
+            err_msg := "state " + state_name + " already set up"
+            return &dbreg.ParamError{Val:err_msg}
+        }
+        if _, err := dbreg.CreateObjectStateRequest(ctx.dbconn, object_id, uint(state_id)) ; err != nil {
+            return err
+        }
+    }
+
+    for _, state_id := range rem_states {
+        if _, err := dbreg.CancelObjectStateRequest(ctx.dbconn, object_id, uint(state_id)) ; err != nil {
+            return err
+        }
+        cur_states.deleteState(state_id)
+    }
+
+    return nil
 }

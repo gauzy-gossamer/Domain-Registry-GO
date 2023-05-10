@@ -9,7 +9,6 @@ import (
     "log"
     "io"
     "strconv"
-    "io/ioutil"
     "registry/server"
     "registry/epp"
     . "registry/epp/eppcom"
@@ -38,8 +37,10 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
             epp_res.Errors = []string{fmt.Sprint(errv)}
         }
         dbconn, err := server.AcquireConn(serv.Pool)
-        defer dbconn.Close()
-        if err == nil {
+        if err != nil {
+            glg.Error(err)
+        } else {
+            defer dbconn.Close()
             epp.ResolveErrorMsg(dbconn, &epp_res, LANG_EN)
         }
         return xml.GenerateResponse(&epp_res, "", "")
@@ -81,7 +82,7 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
 }
 
 func handle_root(w http.ResponseWriter, req *http.Request) {
-    XML, err := ioutil.ReadAll(req.Body)
+    XML, err := io.ReadAll(req.Body)
     if err != nil {
         epp_res := EPPResult{RetCode:2500}
         io.WriteString(w, xml.GenerateResponse(&epp_res, "", ""))
