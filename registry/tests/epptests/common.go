@@ -2,6 +2,7 @@ package epptests
 
 import (
     "testing"
+    "context"
     "registry/server"
     "registry/epp"
     . "registry/epp/eppcom"
@@ -59,7 +60,7 @@ func createDomain(t *testing.T, serv *server.Server, name string, contact_name s
     create_domain := xml.CreateDomain{Name:name, Registrant:contact_name}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_DOMAIN, Sessionid:sessionid}
     create_cmd.Content = &create_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &create_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
@@ -81,7 +82,7 @@ func deleteObject(t *testing.T, serv *server.Server, name string, cmdtype int, r
     delete_obj := xml.DeleteObject{Name:name}
     delete_cmd := xml.XMLCommand{CmdType:cmdtype, Sessionid:sessionid}
     delete_cmd.Content = &delete_obj
-    epp_res := epp.ExecuteEPPCommand(serv, &delete_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &delete_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
@@ -91,7 +92,7 @@ func createHost(t *testing.T, serv *server.Server, name string, ips []string, re
     create_host := xml.CreateHost{Name:name, Addr:ips}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_HOST, Sessionid:sessionid}
     create_cmd.Content = &create_host
-    epp_res := epp.ExecuteEPPCommand(serv, &create_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
@@ -100,7 +101,7 @@ func createHost(t *testing.T, serv *server.Server, name string, ips []string, re
 func createContact(t *testing.T, serv *server.Server, create_contact *xml.CreateContact, retcode int, sessionid uint64) {
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_CONTACT, Sessionid:sessionid}
     create_cmd.Content = create_contact
-    epp_res := epp.ExecuteEPPCommand(serv, &create_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(),serv, &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg)
     }

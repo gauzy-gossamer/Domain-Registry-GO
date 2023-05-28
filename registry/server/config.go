@@ -39,15 +39,6 @@ type RegConfig struct {
     ChargeOperations bool
 }
 
-var LogLevelMap = map[string]glg.LEVEL {
-    "TRACE":glg.TRACE,
-    "LOG":glg.LOG,
-    "INFO":glg.INFO,
-    "WARN":glg.WARN,
-    "ERR":glg.ERR,
-    "FATAL":glg.FATAL,
-}
-
 type ConfigVal struct {
     Field string
     Name string
@@ -74,7 +65,10 @@ func setField(v interface{}, name string, value any) error {
 }
 
 func parseSection(cfg *ini.File, section_name string, set_to interface{}, params []ConfigVal) {
-    section, _ := cfg.GetSection(section_name)
+    section, err := cfg.GetSection(section_name)
+    if err != nil {
+        glg.Fatal("no section", section_name, "in config")
+    }
 
     for _,  val := range params {
         key, err := section.GetKey(val.Name)
@@ -185,15 +179,10 @@ func (r *RegConfig) LoadConfig(config_path string)  {
                 if logfile == "" {
                     break
                 }
-                logwriter := glg.FileWriter(logfile, 0666)
-                glg.Get().SetMode(glg.WRITER).SetWriter(logwriter)
+                SetLogWriter(logfile)
             case "level":
                 loglevel := key.String()
-                if loglevel_, ok := LogLevelMap[loglevel]; !ok {
-                    glg.Fatal("unknown log level", loglevel)
-                } else {
-                    glg.Get().SetLevel(loglevel_)
-                }
+                SetLogLevel(loglevel)
         }
     }
 }

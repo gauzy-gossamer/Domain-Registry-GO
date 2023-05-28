@@ -6,24 +6,30 @@ import (
     "flag"
     "crypto/tls"
     "net/http"
+    _ "net/http/pprof"
     "log"
     "io"
     "strconv"
+    "context"
+
     "registry/server"
     "registry/epp"
     . "registry/epp/eppcom"
     "registry/xml"
     "registry/regrpc"
+
     "github.com/kpango/glg"
 )
 
 var serv server.Server
 
 func process_command(w http.ResponseWriter, req *http.Request, serv *server.Server, XML string) string {
-    var cmd *xml.XMLCommand
-    var errv error
+    cmd, errv := serv.Xml_parser.ParseMessage(XML)
 
-    cmd, errv = serv.Xml_parser.ParseMessage(XML)
+    /* generate server transaction id before main procedure */
+    cmd.SvTRID = server.GenerateTRID(10)
+    logger := server.NewLogger(cmd.SvTRID)
+    ctx := context.WithValue(context.Background(), "logger", logger)
 
     if errv != nil {
         epp_res := EPPResult{}
@@ -38,7 +44,7 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
         }
         dbconn, err := server.AcquireConn(serv.Pool)
         if err != nil {
-            glg.Error(err)
+            logger.Error(err)
         } else {
             defer dbconn.Close()
             epp.ResolveErrorMsg(dbconn, &epp_res, LANG_EN)
@@ -53,7 +59,7 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
         if cmd.CmdType == EPP_LOGIN {
             cert_fingerprint, err := server.GetCertificateFingerprint(serv, req)
             if err != nil {
-                glg.Error(err)
+                logger.Error(err)
             }
             if login_obj, ok := cmd.Content.(*xml.EPPLogin); ok {
                 login_obj.Fingerprint = cert_fingerprint
@@ -65,13 +71,11 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
             }
         }
 
-        /* generate server transaction id before main procedure */
-        cmd.SvTRID = server.GenerateTRID(10)
-        epp_res := epp.ExecuteEPPCommand(serv, cmd)
+        epp_res := epp.ExecuteEPPCommand(ctx, serv, cmd)
 
         if epp_res.CmdType == EPP_LOGIN {
             if login_obj, ok := epp_res.Content.(*LoginResult); ok {
-                glg.Trace("set session", login_obj.Sessionid)
+                logger.Trace("set session", login_obj.Sessionid)
                 cookie := http.Cookie{Name: "EPPSESSIONID", Value:strconv.FormatUint(login_obj.Sessionid,10)}
                 http.SetCookie(w, &cookie)
             }

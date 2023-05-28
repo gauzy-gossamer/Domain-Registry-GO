@@ -2,6 +2,7 @@ package epptests
 
 import (
     "testing"
+    "context"
     "registry/server"
     "registry/epp"
     . "registry/epp/eppcom"
@@ -29,7 +30,7 @@ func TestEPPDomain(t *testing.T) {
     cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN}
     cmd.Content = &info_domain
 
-    epp_res := epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error("should be auth error")
     }
@@ -37,7 +38,7 @@ func TestEPPDomain(t *testing.T) {
     sessionid := fakeSession(t, serv, dbconn, regid)
 
     cmd.Sessionid = sessionid
-    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OBJECT_NOT_EXISTS {
         t.Error("should be ok")
     }
@@ -47,7 +48,7 @@ func TestEPPDomain(t *testing.T) {
 
     createDomain(t, serv, test_domain, test_contact, EPP_OBJECT_EXISTS, sessionid)
 
-    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -81,7 +82,7 @@ func TestEPPCheckDomain(t *testing.T) {
     cmd := xml.XMLCommand{CmdType:EPP_CHECK_DOMAIN, Sessionid:sessionid}
     cmd.Content = &check_domain
 
-    epp_res := epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok")
     }
@@ -96,7 +97,7 @@ func updateDomain(t *testing.T, serv *server.Server, name string, registrant str
     update_domain := xml.UpdateDomain{Name:name, Registrant:registrant, Description:description}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_DOMAIN, Sessionid:sessionid}
     update_cmd.Content = &update_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -143,7 +144,7 @@ func updateDomainHosts(t *testing.T, serv *server.Server, name string, add_hosts
     update_domain := xml.UpdateDomain{Name:name, AddHosts:add_hosts, RemHosts:rem_hosts}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_DOMAIN, Sessionid:sessionid}
     update_cmd.Content = &update_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -203,7 +204,7 @@ func updateDomainStates(t *testing.T, serv *server.Server, name string, add_stat
     update_domain := xml.UpdateDomain{Name:name, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_DOMAIN, Sessionid:sessionid}
     update_cmd.Content = &update_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -239,7 +240,7 @@ func TestEPPDomainStatus(t *testing.T) {
     update_domain := xml.UpdateDomain{Name:test_domain, Description:[]string{"hello"}}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_DOMAIN, Sessionid:sessionid}
     update_cmd.Content = &update_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != EPP_STATUS_PROHIBITS_OPERATION {
         t.Error("should be ", EPP_STATUS_PROHIBITS_OPERATION, epp_res.Msg, epp_res.Errors)
     }
@@ -297,7 +298,7 @@ func TestEPPDomainRenew(t *testing.T) {
     renew_domain := xml.RenewDomain{Name:test_domain, CurExpDate:"2020-01-01"}
     renew_cmd := xml.XMLCommand{CmdType:EPP_RENEW_DOMAIN, Sessionid:sessionid}
     renew_cmd.Content = &renew_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &renew_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &renew_cmd)
     if epp_res.RetCode != EPP_PARAM_VALUE_POLICY {
         t.Error("should be ", EPP_PARAM_VALUE_POLICY, epp_res.Msg, epp_res.Errors)
     }
@@ -305,7 +306,7 @@ func TestEPPDomainRenew(t *testing.T) {
     info_domain := xml.InfoDomain{Name:test_domain}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN, Sessionid:sessionid}
     cmd.Content = &info_domain
-    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ", EPP_OK, epp_res.Msg)
     }
@@ -314,7 +315,7 @@ func TestEPPDomainRenew(t *testing.T) {
 
     renew_domain = xml.RenewDomain{Name:test_domain, CurExpDate:cur_exdate}
     renew_cmd.Content = &renew_domain
-    epp_res = epp.ExecuteEPPCommand(serv, &renew_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &renew_cmd)
     if epp_res.RetCode != EPP_STATUS_PROHIBITS_OPERATION {
         t.Error("should be ", EPP_STATUS_PROHIBITS_OPERATION, epp_res.Msg, epp_res.Errors)
     }
@@ -326,7 +327,7 @@ func TestEPPDomainRenew(t *testing.T) {
 
     renew_domain = xml.RenewDomain{Name:test_domain, CurExpDate:cur_exdate}
     renew_cmd.Content = &renew_domain
-    epp_res = epp.ExecuteEPPCommand(serv, &renew_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &renew_cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ", EPP_OK, epp_res.Msg, epp_res.Errors, cur_exdate)
     }
@@ -343,7 +344,7 @@ func transferDomain(t *testing.T, serv *server.Server, name string, acid string,
     transfer_domain := xml.TransferDomain{Name:name, OP:optype, AcID:acid}
     cmd := xml.XMLCommand{CmdType:EPP_TRANSFER_DOMAIN, Sessionid:sessionid}
     cmd.Content = &transfer_domain
-    epp_res := epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg)
     }
@@ -383,7 +384,7 @@ func TestEPPDomainTransfer(t *testing.T) {
 
     sessionid2 := fakeSession(t, serv, dbconn, regid2)
     poll_cmd := xml.XMLCommand{CmdType:EPP_POLL_REQ, Sessionid:sessionid2}
-    epp_res := epp.ExecuteEPPCommand(serv, &poll_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &poll_cmd)
     /* should definitely exist */
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)

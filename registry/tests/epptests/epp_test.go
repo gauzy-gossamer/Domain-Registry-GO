@@ -9,6 +9,7 @@ package epptests
 
 import (
     "testing"
+    "context"
     "fmt"
     "reflect"
     "registry/server"
@@ -49,25 +50,25 @@ func TestEPPLogin(t *testing.T) {
     login_cmd := xml.XMLCommand{CmdType:EPP_LOGIN}
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password + "err", Lang:LANG_EN, Fingerprint:cert}
-    epp_res := epp.ExecuteEPPCommand(serv, &login_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert + "err"}
-    epp_res = epp.ExecuteEPPCommand(serv, &login_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle + "err", PW:password, Lang:LANG_EN, Fingerprint:cert}
-    epp_res = epp.ExecuteEPPCommand(serv, &login_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert}
-    epp_res = epp.ExecuteEPPCommand(serv, &login_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error(epp_res.Msg)
     }
@@ -81,7 +82,7 @@ func TestEPPLogin(t *testing.T) {
 
     logout_cmd := xml.XMLCommand{CmdType:EPP_LOGOUT, Sessionid:sessionid}
 
-    epp_res = epp.ExecuteEPPCommand(serv, &logout_cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &logout_cmd)
     if epp_res.RetCode != EPP_CLOSING_LOGOUT {
         t.Error(epp_res.Msg)
     }
@@ -90,7 +91,7 @@ func TestEPPLogin(t *testing.T) {
 func pollAck(t *testing.T, serv *server.Server, msgid uint, retcode int, sessionid uint64) {
     poll_ack_cmd := xml.XMLCommand{CmdType:EPP_POLL_ACK, Sessionid:sessionid}
     poll_ack_cmd.Content = fmt.Sprint(msgid)
-    epp_res := epp.ExecuteEPPCommand(serv, &poll_ack_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &poll_ack_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
@@ -113,14 +114,14 @@ func TestEPPPoll(t *testing.T) {
     sessionid := fakeSession(t, serv, dbconn, regid)
 
     poll_cmd := xml.XMLCommand{CmdType:EPP_POLL_REQ, Sessionid:sessionid}
-    epp_res := epp.ExecuteEPPCommand(serv, &poll_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &poll_cmd)
     /* if no message, create it */
     if epp_res.RetCode == EPP_POLL_NO_MSG {
         _, err = dbreg.CreatePollMessage(dbconn, regid, POLL_LOW_CREDIT)
         if err != nil {
             t.Error(err)
         }
-        epp_res = epp.ExecuteEPPCommand(serv, &poll_cmd)
+        epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &poll_cmd)
     }
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)
@@ -131,10 +132,7 @@ func TestEPPPoll(t *testing.T) {
     }
     pollAck(t, serv, poll_msg.Msgid, EPP_OK, sessionid) 
 
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
+    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
@@ -170,7 +168,7 @@ func updateContact(t *testing.T, serv *server.Server, fields ContactFields, retc
     update_contact := &xml.UpdateContact{Fields: fields}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
     update_cmd.Content = update_contact
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg)
     }
@@ -197,7 +195,7 @@ func TestEPPContact(t *testing.T) {
     info_contact := xml.InfoContact{Name:test_contact}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
-    epp_res := epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -213,7 +211,7 @@ func TestEPPContact(t *testing.T) {
     info_contact = xml.InfoContact{Name:person_handle}
     cmd = xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
-    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -237,7 +235,7 @@ func updateContactStates(t *testing.T, serv *server.Server, name string, add_sta
     update_contact := xml.UpdateContact{Fields:ContactFields{ContactId:name}, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
     update_cmd.Content = &update_contact
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -283,7 +281,7 @@ func updateHost(t *testing.T, serv *server.Server, name string, add_ips []string
     update_host := xml.UpdateHost{Name:name, AddAddrs:add_ips, RemAddrs:rem_ips}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
     update_cmd.Content = &update_host
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -312,7 +310,7 @@ func TestEPPHost(t *testing.T) {
     cmd := xml.XMLCommand{CmdType:EPP_INFO_HOST, Sessionid:sessionid}
     cmd.Content = &info_host
 
-    epp_res := epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OBJECT_NOT_EXISTS {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -321,7 +319,7 @@ func TestEPPHost(t *testing.T) {
     createHost(t, serv, non_subordinate_host, []string{"127.88.88.88"}, EPP_PARAM_VALUE_POLICY, sessionid)
     createHost(t, serv, non_subordinate_host, []string{}, EPP_OK, sessionid)
 
-    epp_res = epp.ExecuteEPPCommand(serv, &cmd)
+    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -345,7 +343,7 @@ func updateHostStates(t *testing.T, serv *server.Server, name string, add_states
     update_host := xml.UpdateHost{Name:name, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
     update_cmd.Content = &update_host
-    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }

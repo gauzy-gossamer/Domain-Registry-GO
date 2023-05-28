@@ -2,9 +2,12 @@ package epp
 
 import (
     "fmt"
+    "context"
+
     "registry/xml"
     "registry/server"
     . "registry/epp/eppcom"
+
     "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
 )
@@ -13,6 +16,7 @@ type EPPContext struct {
     serv *server.Server
     session *server.EPPSession
     dbconn *server.DBConn
+    logger server.Logger
 }
 
 /* fill the text message by return code */
@@ -30,22 +34,26 @@ func ResolveErrorMsg(db *server.DBConn, epp_result *EPPResult, lang uint) {
     }
 }
 
-func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
+func GetLogger(ctx context.Context) server.Logger {
+    if logger, ok := ctx.Value("logger").(server.Logger); ok {
+        return logger
+    }
+    return server.NewLogger("")
+}
+
+func ExecuteEPPCommand(ctx_ context.Context, serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
     dbconn, err := server.AcquireConn(serv.Pool)
     if err != nil {
         return &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_FAILED}
     }
     defer dbconn.Close()
-    ctx := EPPContext{serv:serv, dbconn:dbconn}
+    ctx := EPPContext{serv:serv, dbconn:dbconn, logger:GetLogger(ctx_)}
 
     /* default to english */
     Lang := uint(LANG_EN)
 
     glg.Info(cmd.SvTRID)
     if cmd.CmdType != EPP_LOGIN {
-        // need to set prefix for each coroutine, not globally
-//        glg.SetPrefix(glg.TRACE, fmt.Sprint(cmd.SvTRID))
-//        glg.Trace(cmd.SvTID)
         ctx.session = serv.Sessions.CheckSession(dbconn, cmd.Sessionid)
         if ctx.session == nil {
             epp_result := &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_AUTHENTICATION_ERR}
@@ -54,7 +62,7 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
         }
         Lang = ctx.session.Lang
         if cmd.CmdType != EPP_LOGOUT && serv.Sessions.QueryLimitExceeded(ctx.session.Regid) {
-            glg.Info(ctx.session.Regid, " exceeded limit on queries")
+            ctx.logger.Info(ctx.session.Regid, " exceeded limit on queries")
             epp_result := &EPPResult{CmdType:cmd.CmdType, RetCode:EPP_SESSION_LIMIT, Msg:"exceeded number of queries per minute"}
             ResolveErrorMsg(ctx.dbconn, epp_result, Lang)
             return epp_result
@@ -71,7 +79,7 @@ func ExecuteEPPCommand(serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
             }
 
         case EPP_LOGOUT:
-            glg.Info("Logout", cmd.Sessionid)
+            ctx.logger.Info("Logout", cmd.Sessionid)
             err = serv.Sessions.LogoutSession(dbconn, cmd.Sessionid)
             if err != nil {
                 return &EPPResult{RetCode:EPP_FAILED}
@@ -172,7 +180,7 @@ func authenticateRegistrar(db *server.DBConn, regid uint, v *xml.EPPLogin) (bool
 }
 
 func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
-    glg.Info("Login", v.Clid)
+    ctx.logger.Info("Login", v.Clid)
     var id uint
     var system bool
     var requests int
@@ -184,14 +192,14 @@ func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     if ok, err := authenticateRegistrar(ctx.dbconn, id, v); !ok || err != nil {
         if !ok {
             return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
