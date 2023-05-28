@@ -42,11 +42,11 @@ func (r *registryServer) LoginSystem(ctx context.Context, empty *Empty) (*Sessio
 
     ret_msg := Session{}
     dbconn, err := server.AcquireConn(r.mainServer.Pool)
-    defer dbconn.Close()
     if err != nil {
         glg.Error(err)
         return nil, err
     }
+    defer dbconn.Close()
     login_cmd, err := getSystemRegistrar(dbconn)
     xml_cmd := xml.XMLCommand{SvTRID:"gRPCLogin", CmdType:EPP_LOGIN}
     xml_cmd.Content = login_cmd
@@ -83,11 +83,11 @@ func (r *registryServer) LogoutSystem(ctx context.Context, session *Session) (*S
 func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_GetExpiredDomainsServer) error {
     glg.Trace("grpc GetExpiredDomains")
     dbconn, err := server.AcquireConn(r.mainServer.Pool)
-    defer dbconn.Close()
     if err != nil {
         glg.Error(err)
         return err
     }
+    defer dbconn.Close()
     /* 0 - all objects */
     if err := epp.UpdateObjectStates(dbconn, uint64(0)) ; err != nil {
         return err
@@ -151,5 +151,8 @@ func StartgRPCServer(serv *server.Server) {
     grpcServer := grpc.NewServer(opts...)
     RegisterRegistryServer(grpcServer, newServer(serv))
     glg.Info("running gRPC at ", server_addr)
-    grpcServer.Serve(lis)
+    err = grpcServer.Serve(lis)
+    if err != nil {
+        glg.Fatal(err)
+    }
 }

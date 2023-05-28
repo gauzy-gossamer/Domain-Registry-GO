@@ -5,14 +5,9 @@ import (
     "strconv"
     "registry/server"
     . "registry/epp/eppcom"
-    "github.com/kpango/glg"
-
 )
 
 type UpdateDomainDB struct {
-    p_local_zone string
-    domainid uint64
-    regid uint
     add_hosts []HostObj
     rem_hosts []HostObj
     registrant NullableVal
@@ -68,8 +63,6 @@ func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) e
     if !up.registrant.IsNull() || !up.description.IsNull() {
         var params []any
         var fields []string
-
-        glg.Info(up.registrant.IsNull())
 
         if !up.registrant.IsNull() {
             params = append(params, up.registrant.Get())

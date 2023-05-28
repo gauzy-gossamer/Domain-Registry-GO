@@ -166,6 +166,16 @@ func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
     return &xml.CreateContact{Fields: fields}
 }
 
+func updateContact(t *testing.T, serv *server.Server, fields ContactFields, retcode int, sessionid uint64) {
+    update_contact := &xml.UpdateContact{Fields: fields}
+    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
+    update_cmd.Content = update_contact
+    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg)
+    }
+}
+
 func TestEPPContact(t *testing.T) {
     serv := prepareServer()
 
@@ -215,16 +225,56 @@ func TestEPPContact(t *testing.T) {
 
     fields := ContactFields{ContactId:person_handle}
     fields.Verified.Set(true)
-    update_contact := &xml.UpdateContact{Fields: fields}
-    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
-    update_cmd.Content = update_contact
-    epp_res = epp.ExecuteEPPCommand(serv, &update_cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ", EPP_OK, epp_res.Msg)
-    }
+    updateContact(t, serv, fields, EPP_OK, sessionid)
 
     deleteObject(t, serv, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
     deleteObject(t, serv, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+
+    logoutSession(t, serv, dbconn, sessionid)
+}
+
+func updateContactStates(t *testing.T, serv *server.Server, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
+    update_contact := xml.UpdateContact{Fields:ContactFields{ContactId:name}, AddStatus:add_states, RemStatus:rem_states}
+    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
+    update_cmd.Content = &update_contact
+    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }
+}
+
+func TestEPPContactStates(t *testing.T) {
+    serv := prepareServer()
+
+    dbconn, err := server.AcquireConn(serv.Pool)
+    if err != nil {
+        t.Error("failed acquire conn")
+    }
+    defer dbconn.Close()
+
+    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }
+
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    test_contact := "TEST-" + server.GenerateRandString(8)
+    create_org := getCreateContact(test_contact, CONTACT_PERSON)
+    createContact(t, serv, create_org, EPP_OK, sessionid)
+
+    updateContactStates(t, serv, test_contact, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    /* state allowed only for domains */
+    updateContactStates(t, serv, test_contact, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateContactStates(t, serv, test_contact, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
+
+    fields := ContactFields{ContactId:test_contact}
+    fields.Verified.Set(true)
+    updateContact(t, serv, fields, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
+
+    updateContactStates(t, serv, test_contact, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
+
+    deleteObject(t, serv, test_contact, EPP_DELETE_CONTACT, EPP_OK, sessionid)
 
     logoutSession(t, serv, dbconn, sessionid)
 }
@@ -289,4 +339,48 @@ func TestEPPHost(t *testing.T) {
     if err != nil {
         t.Error("logout failed")
     }
+}
+
+func updateHostStates(t *testing.T, serv *server.Server, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
+    update_host := xml.UpdateHost{Name:name, AddStatus:add_states, RemStatus:rem_states}
+    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
+    update_cmd.Content = &update_host
+    epp_res := epp.ExecuteEPPCommand(serv, &update_cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }
+}
+
+func TestEPPHostStates(t *testing.T) {
+    serv := prepareServer()
+
+    dbconn, err := server.AcquireConn(serv.Pool)
+    if err != nil {
+        t.Error("failed acquire conn")
+    }
+    defer dbconn.Close()
+
+    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }
+
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    test_host := "ns1." + generateRandomDomain(zone)
+
+    createHost(t, serv, test_host, []string{}, EPP_OK, sessionid)
+
+    updateHostStates(t, serv, test_host, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    /* state allowed only for domains */
+    updateHostStates(t, serv, test_host, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateHostStates(t, serv, test_host, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
+
+    updateHost(t, serv, test_host, []string{"10.10.0.1"}, []string{}, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
+
+    updateHostStates(t, serv, test_host, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
+
+    deleteObject(t, serv, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
+
+    logoutSession(t, serv, dbconn, sessionid)
 }

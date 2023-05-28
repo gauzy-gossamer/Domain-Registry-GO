@@ -8,9 +8,6 @@ import (
 )
 
 type UpdateContactDB struct {
-    p_local_zone string
-    regid uint
-
     intpostal NullableVal
     intaddress NullableVal
     locpostal NullableVal

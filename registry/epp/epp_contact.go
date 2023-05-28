@@ -130,6 +130,24 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
         return cmd
     }
 
+    err := ctx.dbconn.Begin()
+    if err != nil {
+        glg.Error(err)
+        return &EPPResult{RetCode:EPP_FAILED}
+    }
+    defer ctx.dbconn.Rollback()
+
+    if len(v.AddStatus) > 0 || len(v.RemStatus) > 0 {
+        err := updateObjectClientStates(ctx, contact_data.Id, object_states, v.AddStatus, v.RemStatus, "contact")
+        if err != nil {
+            if perr, ok := err.(*dbreg.ParamError); ok {
+                return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
+            }
+            glg.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
+    }
+
     if !ctx.session.System {
         if object_states.hasState(serverUpdateProhibited) ||
            object_states.hasState(clientUpdateProhibited) ||
@@ -156,14 +174,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
 */
     if !v.Fields.Verified.IsNull() {
         update_contact.SetVerified(v.Fields.Verified.Get())
-   }
-
-    err := ctx.dbconn.Begin()
-    if err != nil {
-        glg.Error(err)
-        return &EPPResult{RetCode:2500}
     }
-    defer ctx.dbconn.Rollback()
 
     err = update_contact.Exec(ctx.dbconn, contact_data.Id, ctx.session.Regid)
     if err != nil {
@@ -174,7 +185,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
     err = ctx.dbconn.Commit()
     if err != nil {
         glg.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     var res = EPPResult{RetCode:EPP_OK}

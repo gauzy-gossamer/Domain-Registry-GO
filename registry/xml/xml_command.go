@@ -4,7 +4,6 @@ import (
    "registry/epp/eppcom"
 )
 
-
 type EPPLogin struct {
     Clid string
     PW string
@@ -68,10 +67,14 @@ type UpdateHost struct {
     Name string
     AddAddrs []string
     RemAddrs []string
+    AddStatus []string
+    RemStatus []string
 }
 
 type UpdateContact struct {
     Fields eppcom.ContactFields
+    AddStatus []string
+    RemStatus []string
 }
 
 type RenewDomain struct {

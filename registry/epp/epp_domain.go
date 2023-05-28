@@ -264,7 +264,7 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
     defer ctx.dbconn.Rollback()
 
     if len(v.AddStatus) > 0 || len(v.RemStatus) > 0 {
-        err := updateObjectClientStates(ctx, domain_data.Id, object_states, v.AddStatus, v.RemStatus)
+        err := updateObjectClientStates(ctx, domain_data.Id, object_states, v.AddStatus, v.RemStatus, "domain")
         if err != nil {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}

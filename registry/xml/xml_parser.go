@@ -368,6 +368,9 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
             update_host.AddAddrs = getElementList(ctx, "host:add/host:addr")
             update_host.RemAddrs = getElementList(ctx, "host:rem/host:addr")
 
+            update_host.AddStatus = getStatusList(ctx, "host:add/host:status")
+            update_host.RemStatus = getStatusList(ctx, "host:rem/host:status")
+
             cmd.CmdType = EPP_UPDATE_HOST
             cmd.Content = &update_host
 
@@ -376,6 +379,9 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
             var update_contact UpdateContact
 
             update_contact.Fields.ContactId = xpath.String(ctx.Find("contact:id"))
+
+            update_contact.AddStatus = getStatusList(ctx, "contact:add/contact:status")
+            update_contact.RemStatus = getStatusList(ctx, "contact:rem/contact:status")
 
             nodes = xpath.NodeList(ctx.Find("contact:chg"))
             if len(nodes) > 0 {

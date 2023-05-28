@@ -135,14 +135,6 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         return cmd
     }
 
-    if !ctx.session.System {
-        if object_states.hasState(serverUpdateProhibited) ||
-           object_states.hasState(clientUpdateProhibited) ||
-           object_states.hasState(pendingDelete) {
-            return &EPPResult{RetCode:EPP_STATUS_PROHIBITS_OPERATION}
-        }
-    }
-
     var err error
     if len(v.AddAddrs) > 0 {
         if ok, err := isHostSubordinate(ctx.dbconn, host_name, ctx.session.Regid); !ok || err != nil  {
@@ -166,26 +158,45 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    // TODO check rem and add addresses
-    //host_addrs := getHostIPAddresses(ctx.dbconn, host_data.Id)
-
     err = ctx.dbconn.Begin()
     if err != nil {
         glg.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
     defer ctx.dbconn.Rollback()
+
+    if len(v.AddStatus) > 0 || len(v.RemStatus) > 0 {
+        err := updateObjectClientStates(ctx, host_data.Id, object_states, v.AddStatus, v.RemStatus, "nsset")
+        if err != nil {
+            if perr, ok := err.(*dbreg.ParamError); ok {
+                return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
+            }
+            glg.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
+    }
+
+    if !ctx.session.System {
+        if object_states.hasState(serverUpdateProhibited) ||
+           object_states.hasState(clientUpdateProhibited) ||
+           object_states.hasState(pendingDelete) {
+            return &EPPResult{RetCode:EPP_STATUS_PROHIBITS_OPERATION}
+        }
+    }
+
+    // TODO check rem and add addresses
+    //host_addrs := getHostIPAddresses(ctx.dbconn, host_data.Id)
 
     err = dbreg.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
     if err != nil {
         glg.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
         glg.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     return &EPPResult{RetCode:EPP_OK}

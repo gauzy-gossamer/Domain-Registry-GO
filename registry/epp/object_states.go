@@ -141,13 +141,13 @@ func getClientObjectStates(db *server.DBConn, states []string, object_type strin
     return state_ids, nil
 }
 
-func updateObjectClientStates(ctx *EPPContext, object_id uint64, cur_states *ObjectStates, add_states_ []string, rem_states_ []string) error {
-    add_states, err := getClientObjectStates(ctx.dbconn, add_states_, "domain")
+func updateObjectClientStates(ctx *EPPContext, object_id uint64, cur_states *ObjectStates, add_states_ []string, rem_states_ []string, obj_type string) error {
+    add_states, err := getClientObjectStates(ctx.dbconn, add_states_, obj_type)
     if err != nil {
         return err
     }
 
-    rem_states, err := getClientObjectStates(ctx.dbconn, rem_states_, "domain")
+    rem_states, err := getClientObjectStates(ctx.dbconn, rem_states_, obj_type)
     if err != nil {
         return err
     }
