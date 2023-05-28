@@ -55,7 +55,7 @@ func (r *registryServer) LoginSystem(ctx context.Context, empty *Empty) (*Sessio
         glg.Error(err)
         return nil, err
     }
-    epp_result := epp.ExecuteEPPCommand(r.mainServer, &xml_cmd)
+    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
     if login_obj, ok := epp_result.Content.(*LoginResult); ok {
         ret_msg.Sessionid = strconv.FormatUint(login_obj.Sessionid,10)
     }
@@ -69,7 +69,7 @@ func (r *registryServer) LogoutSystem(ctx context.Context, session *Session) (*S
     xml_cmd := xml.XMLCommand{SvTRID:"gRPCLogout", CmdType:EPP_LOGOUT}
     xml_cmd.Sessionid, _ = strconv.ParseUint(session.Sessionid, 10, 64)
 
-    epp_result := epp.ExecuteEPPCommand(r.mainServer, &xml_cmd)
+    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
 
     ret_msg := Status{ReturnCode:0}
 
@@ -129,7 +129,7 @@ func (r *registryServer) DeleteDomain(ctx context.Context, domain *Domain) (*Sta
     xml_cmd.Sessionid, _ = strconv.ParseUint(domain.Sessionid, 10, 64)
     xml_cmd.Content = &xml.DeleteObject{Name:domain.Name}
 
-    epp_result := epp.ExecuteEPPCommand(r.mainServer, &xml_cmd)
+    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
 
     ret_msg := Status{ReturnCode:0}
 
