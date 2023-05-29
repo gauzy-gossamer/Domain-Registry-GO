@@ -89,7 +89,7 @@ func deleteObject(db *server.DBConn, object_id uint64) error {
 }
 
 func updateObject(db *server.DBConn, object_id uint64, regid uint) error {
-    row := db.QueryRow("UPDATE object SET update = now() AT TIME ZONE 'UTC', upid = $1::integer " +
+    row := db.QueryRow("UPDATE object SET update = now(), upid = $1::integer " +
             "WHERE id = $2::integer RETURNING id", regid, object_id)
 
     var updated_id uint64
