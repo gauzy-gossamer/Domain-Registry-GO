@@ -6,7 +6,6 @@ import (
     "registry/epp/dbreg"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
-    "github.com/kpango/glg"
 )
 
 func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool) (*InfoContactData, *ObjectStates, *EPPResult) {
@@ -16,7 +15,7 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
         if err == pgx.ErrNoRows {
             return nil, nil, &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return nil, nil, &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -28,14 +27,14 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
 
     if for_update {
         if err := UpdateObjectStates(ctx.dbconn, contact_data.Id); err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
             return nil,nil, &EPPResult{RetCode:EPP_FAILED}
         }
     }
 
     object_states, err := getObjectStates(ctx.dbconn, contact_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return nil,nil, &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -43,7 +42,7 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
 }
 
 func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoContact) (*EPPResult) {
-    glg.Info("Info contact", v.Name)
+    ctx.logger.Info("Info contact", v.Name)
     contact_handle := strings.ToLower(v.Name)
     contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, false)
     if cmd != nil {
@@ -59,7 +58,7 @@ func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoContact) (*EPPResult) {
 
 func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult) {
     contact_handle := strings.ToLower(v.Fields.ContactId)
-    glg.Info("Create contact", contact_handle)
+    ctx.logger.Info("Create contact", contact_handle)
 
     if !checkContactHandleValidity(contact_handle) {
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
@@ -67,7 +66,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
 
     if ok, err := isContactAvailable(ctx.dbconn, contact_handle); !ok {
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
         }
         return &EPPResult{RetCode:EPP_OBJECT_EXISTS}
     }
@@ -80,7 +79,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
 
     err := ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
@@ -107,13 +106,13 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
     create_contact.SetVerified(v.Fields.Verified.Get())
     create_result, err := create_contact.SetParams(contact_handle, ctx.session.Regid, v.Fields.ContactType).Exec(ctx.dbconn)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -124,7 +123,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
 
 func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult) {
     contact_handle := strings.ToLower(v.Fields.ContactId)
-    glg.Info("Update contact", contact_handle)
+    ctx.logger.Info("Update contact", contact_handle)
     contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, true)
     if cmd != nil {
         return cmd
@@ -132,7 +131,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
 
     err := ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     defer ctx.dbconn.Rollback()
@@ -143,7 +142,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
     }
@@ -178,13 +177,13 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
 
     err = update_contact.Exec(ctx.dbconn, contact_data.Id, ctx.session.Regid)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -194,7 +193,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
 
 func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     contact_handle := strings.ToLower(v.Name)
-    glg.Info("Delete contact", contact_handle)
+    ctx.logger.Info("Delete contact", contact_handle)
     contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, true)
     if cmd != nil {
         return cmd
@@ -213,20 +212,20 @@ func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
 
     err := ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
 
     err = dbreg.DeleteContact(ctx.dbconn, contact_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 

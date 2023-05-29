@@ -11,7 +11,7 @@ import (
 )
 
 func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
-    glg.Info("Domain check", v.Names)
+    ctx.logger.Info("Domain check", v.Names)
 
     var check_results []CheckResult
     domain_checker := NewDomainChecker()
@@ -31,14 +31,14 @@ func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
         }
         if ok, err := isDomainAvailable(ctx.dbconn, domain); !ok {
             if err != nil {
-                glg.Error(err)
+                ctx.logger.Error(err)
             }
             check_results = append(check_results, CheckResult{Name:domain, Result:CD_REGISTERED})
             continue
         }
         if ok, err := domain_checker.IsDomainRegistrable(ctx.dbconn, domain, zone.id); !ok {
             if err != nil {
-                glg.Error(err)
+                ctx.logger.Error(err)
             }
             check_results = append(check_results, CheckResult{Name:domain, Result:CD_NOT_APPLICABLE})
             continue
@@ -52,7 +52,7 @@ func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
 }
 
 func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
-    glg.Info("Domain info", v.Name)
+    ctx.logger.Info("Domain info", v.Name)
     domain := normalizeDomain(v.Name)
     info_db := dbreg.NewInfoDomainDB()
     domain_data, err := info_db.Set_fqdn(domain).Exec(ctx.dbconn)
@@ -60,7 +60,7 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -72,7 +72,7 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
 
     object_states, err := getObjectStates(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -80,7 +80,7 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
 
     domain_hosts, err := dbreg.GetDomainHosts(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     for _, host := range domain_hosts {
@@ -93,7 +93,7 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
 }
 
 func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
-    glg.Info("Domain create", v.Name)
+    ctx.logger.Info("Domain create", v.Name)
     domain := normalizeDomain(v.Name)
 
     if !checkDomainValidity(domain) {
@@ -114,13 +114,13 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
 
     if ok, err := isDomainAvailable(ctx.dbconn, domain); !ok {
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
         }
         return &EPPResult{RetCode:EPP_OBJECT_EXISTS}
     }
     if ok, err := NewDomainChecker().IsDomainRegistrable(ctx.dbconn, domain, zone.id); !ok {
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
         }
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
     }
@@ -130,7 +130,7 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -141,7 +141,7 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
         cmd := testNumberOfHosts(ctx, len(host_objects))
@@ -160,7 +160,7 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
     create_domain := dbreg.NewCreateDomainDB()
     result, err := create_domain.SetParams(domain, zone.id, registrant, ctx.session.Regid, v.Description, host_objects).Exec(ctx.dbconn)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -170,25 +170,25 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
             if _, ok := err.(*dbreg.BillingFailure); ok {
                 return &EPPResult{RetCode:EPP_BILLING_FAILURE}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:2500}
         }
     }
 
     if err := UpdateObjectStates(ctx.dbconn, result.Id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = updateHostStates(ctx.dbconn, host_objects)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -204,7 +204,7 @@ func get_domain_obj(ctx *EPPContext, domain string, for_update bool) (*InfoDomai
         if err == pgx.ErrNoRows {
             return nil, nil, &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return nil, nil, &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -488,7 +488,7 @@ func deleteUnlinkedHosts(ctx *EPPContext, hosts []dbreg.HostObj) error {
 
 func epp_domain_delete_impl(ctx *EPPContext, v *xml.DeleteObject) (*EPPResult) {
     domain := normalizeDomain(v.Name)
-    glg.Info("Delete domain", domain)
+    ctx.logger.Info("Delete domain", domain)
 
     domain_data, object_states, cmd := get_domain_obj(ctx, domain, true)
     if cmd != nil {
@@ -505,36 +505,36 @@ func epp_domain_delete_impl(ctx *EPPContext, v *xml.DeleteObject) (*EPPResult) {
 
     domain_hosts, err := dbreg.GetDomainHosts(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
 
     err = dbreg.DeleteDomain(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     err = deleteUnlinkedContacts(ctx, domain_data.Registrant.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     err = deleteUnlinkedHosts(ctx, domain_hosts)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
