@@ -7,7 +7,6 @@ import (
     "registry/epp/dbreg"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
-    "github.com/kpango/glg"
 )
 
 func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
@@ -152,7 +151,7 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
 
     err = ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
@@ -217,14 +216,14 @@ func get_domain_obj(ctx *EPPContext, domain string, for_update bool) (*InfoDomai
     if for_update {
         err = UpdateObjectStates(ctx.dbconn, domain_data.Id)
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
             return nil, nil, &EPPResult{RetCode:EPP_FAILED}
         }
     }
 
     object_states, err := getObjectStates(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return nil, nil, &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -248,7 +247,7 @@ func testNumberOfHosts(ctx *EPPContext, hosts_n int) *EPPResult {
 }
 
 func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
-    glg.Info("Domain update", v.Name)
+    ctx.logger.Info("Domain update", v.Name)
     domain := normalizeDomain(v.Name)
 
     domain_data, object_states, cmd := get_domain_obj(ctx, domain, true)
@@ -258,7 +257,7 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
 
     err := ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
@@ -269,7 +268,7 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
     }
@@ -290,7 +289,7 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
 
@@ -299,13 +298,13 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
 
         domain_hosts, err := dbreg.GetDomainHosts(ctx.dbconn, domain_data.Id)
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
         err_host := allHostsPresent(rem_hosts, domain_hosts)
@@ -332,10 +331,9 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
-        glg.Error("registrant", v.Registrant, registrant)
         update_domain.SetRegistrant(registrant)
     }
     if len(v.Description) > 0 {
@@ -344,27 +342,27 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
 
     err = update_domain.Exec(ctx.dbconn, domain_data.Id, ctx.session.Regid)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = UpdateObjectStates(ctx.dbconn, domain_data.Id)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     /* if we updated registrant , the previous registrant could've become unlinked*/
     if v.Registrant != "" {
         err = deleteUnlinkedContacts(ctx, domain_data.Registrant.Id)
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:2500}
         }
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -381,7 +379,7 @@ func testExpDate(userExpDate string, domainExpDate time.Time) bool {
 
 func epp_domain_renew_impl(ctx *EPPContext, v *xml.RenewDomain) (*EPPResult) {
     domain := normalizeDomain(v.Name)
-    glg.Info("Renew domain", domain)
+    ctx.logger.Info("Renew domain", domain)
 
     domain_data, object_states, cmd := get_domain_obj(ctx, domain, true)
     if cmd != nil {
@@ -404,20 +402,20 @@ func epp_domain_renew_impl(ctx *EPPContext, v *xml.RenewDomain) (*EPPResult) {
     /* period is ignored for now, always prolong for one year */
     new_exdate, err := dbreg.GetNewExdate(ctx.dbconn, domain_data.Expiration_date, 12)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     err = ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
 
     err = dbreg.RenewDomain(ctx.dbconn, domain_data.Id, domain_data.Expiration_date, new_exdate)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -427,19 +425,19 @@ func epp_domain_renew_impl(ctx *EPPContext, v *xml.RenewDomain) (*EPPResult) {
             if _, ok := err.(*dbreg.BillingFailure); ok {
                 return &EPPResult{RetCode:EPP_BILLING_FAILURE}
             }
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:2500}
         }
     }
 
     if err := UpdateObjectStates(ctx.dbconn, domain_data.Id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     err = ctx.dbconn.Commit()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
