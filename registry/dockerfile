@@ -2,9 +2,11 @@ FROM golang:1.20-alpine AS builder
 
 WORKDIR /usr/src/registry
 
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED 1
 ENV GOPATH /go
 ENV GOCACHE /go-build
+
+RUN apk add --update gcc libc-dev pkgconfig libxml2-dev
 
 COPY go.mod go.sum ./
 RUN go mod download

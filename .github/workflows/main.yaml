@@ -21,3 +21,11 @@ jobs:
       - name: Build Registry
         working-directory: ./registry
         run: go build -v ./...
+
+      - name: Install whois dependencies
+        working-directory: ./whois
+        run: go get .
+
+      - name: Build Whois
+        working-directory: ./whois
+        run: go build -v ./...

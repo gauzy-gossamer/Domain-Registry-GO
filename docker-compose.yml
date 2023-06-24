@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  regdb:
+    image: postgres:latest
+    restart: always
+    ports:
+      - 7432:5432
+    environment:
+      - POSTGRES_PASSWORD=dbpassword
+      - POSTGRES_DB=registry
+      - POSTGRES_USER=registry
+    volumes:
+      - registry_db:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q"]
+
+  regadmin:
+    restart: always
+    container_name: regadmin
+    build:
+        context: ./admin
+    volumes:
+      - regadmin:/usr/src/app
+    ports:
+      - 8088:8088
+    links:
+       - regdb
+
+  regwhois:
+    restart: always
+    container_name: regwhois
+    build:
+        context: ./whois
+    ports:
+      - 8043:8043
+    links:
+       - regdb
+
+#  regcore:
+#    restart: always
+#    container_name: regcore
+#    build:
+#        context: ./registry
+#    ports:
+#      - 8090:8090
+#    links:
+#       - regdb
+
+volumes:
+  registry_db:
+    driver: local
+  regadmin:
+    driver: local
