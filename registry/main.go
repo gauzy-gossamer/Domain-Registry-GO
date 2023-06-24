@@ -126,11 +126,11 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    defer dbconn.Close()
     serv.Sessions.MaxRegistrarSessions = serv.RGconf.MaxRegistrarSessions
     serv.Sessions.MaxQueriesPerMinute = serv.RGconf.MaxQueriesPerMinute
     serv.Sessions.SessionTimeoutSec = serv.RGconf.SessionTimeout
     serv.Sessions.InitSessions(dbconn)
+    dbconn.Close()
 
     go regrpc.StartgRPCServer(&serv)
 
@@ -148,8 +148,12 @@ func main() {
     fmt.Println("server is running at", host_addr)
 
     if serv.RGconf.HTTPConf.UseProxy {
-        httpserver.ListenAndServe()
+        if err := httpserver.ListenAndServe(); err != nil {
+            log.Fatal(err)
+        }
     } else {
-        httpserver.ListenAndServeTLS(serv.RGconf.HTTPConf.CertFile, serv.RGconf.HTTPConf.KeyFile)
+        if err := httpserver.ListenAndServeTLS(serv.RGconf.HTTPConf.CertFile, serv.RGconf.HTTPConf.KeyFile); err != nil {
+            log.Fatal(err)
+        }
     }
 }
