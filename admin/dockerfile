@@ -4,6 +4,12 @@ WORKDIR /usr/src/app
 
 COPY . . 
 
+RUN apt update && apt install -y curl
+
 RUN pip install -r requirements.txt
 
+EXPOSE 8088
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8088"]
+
+HEALTHCHECK --interval=1m CMD curl --fail http://localhost:8088 || exit 1

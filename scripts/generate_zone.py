@@ -84,7 +84,7 @@ class ZoneDB():
                 (self.zoneid,))
         if cursor.rowcount == 0:
             cursor.close()
-            raise ccReg.ZoneGenerator.UnknownZone()
+            raise Exception("unknown zone")
         (zonename, ttl, hostmaster, serial, refresh, update_retr, expiry, minimum,
                 ns_fqdn) = cursor.fetchone()
 

@@ -1,3 +1,4 @@
 {
-    "db":{"host":"localhost", "password":"passwd", "user":"dbuser"}
+    "db":{"host":"localhost", "password":"dbpassword", "user":"registry", "port":"7432"},
+    "admin_host":"http://127.0.0.1:8088"  
 }
