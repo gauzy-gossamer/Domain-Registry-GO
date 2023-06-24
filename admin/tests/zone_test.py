@@ -58,25 +58,46 @@ def test_get_zone_pricelist(temp_db):
         assert response.status_code == 200
         price_list_val = response.json()
         assert price_list_val[0]['price'] == request_data['price']
-        
 
-
-'''
-@pytest.mark.freeze_time("2015-10-21")
-def test_user_detail_forbidden_with_expired_token(temp_db, freezer):
-    user = UserCreate(
-        email="sidious@deathstar.com",
-        name="Palpatine",
-        password="unicorn"
-    )
+def test_zone_soa(temp_db):
+    request_data = {"fqdn":"example-soa.com", "ex_period_min":12, "ex_period_max":12}
     with TestClient(app) as client:
-        # Create user and use expired token
-        loop = asyncio.get_event_loop()
-        user_db = loop.run_until_complete(create_user(user))
-        freezer.move_to("'2015-11-10'")
-        response = client.get(
-            "/users/me",
-            headers={"Authorization": f"Bearer {user_db['token']['token']}"}
-        )
-    assert response.status_code == 401
-'''
+        response = client.post("/zones",  json=request_data)
+        assert response.status_code == 200
+        created_zone = response.json()
+
+        request_data = {"ttl":8600, "serial":100, "refresh":1, "update_retr":1, "expiry":1, "minimum":1, "hostmaster":"admin.example-soa.com", "ns_fqdn":"ns.example-soa.com"}
+
+        response = client.post("/zones/{}/soa".format(created_zone['id']), json=request_data)
+        assert response.status_code == 200, response
+
+        response = client.get("/zones/{}/soa".format(created_zone['id']))
+        assert response.status_code == 200
+        zone_soa_val = response.json()
+        assert zone_soa_val['ttl'] == request_data['ttl']
+        assert zone_soa_val['hostmaster'] == request_data['hostmaster']
+
+def test_zone_ns(temp_db):
+    request_data = {"fqdn":"example-ns.com", "ex_period_min":12, "ex_period_max":12}
+    with TestClient(app) as client:
+        response = client.post("/zones",  json=request_data)
+        assert response.status_code == 200
+        created_zone = response.json()
+
+        request_data = {"fqdn":"ns.example-soa.com", "addrs":["127.0.0.1"]}
+
+        response = client.post("/zones/{}/ns".format(created_zone['id']), json=request_data)
+        assert response.status_code == 200, response
+
+        response = client.get("/zones/{}/ns".format(created_zone['id']))
+        assert response.status_code == 200
+        zone_ns_val = response.json()
+        assert zone_ns_val[0]['fqdn'] == request_data['fqdn']
+
+        response = client.request("delete", "/zones/{}/ns".format(created_zone['id']), json=request_data)
+        assert response.status_code == 200, response
+
+        response = client.get("/zones/{}/ns".format(created_zone['id']))
+        assert response.status_code == 200
+        zone_ns_val = response.json()
+        assert len(zone_ns_val) == 0

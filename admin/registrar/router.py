@@ -26,7 +26,7 @@ async def create_registrar(post: schema.RegistrarCreate):
 async def get_registraracl(regid : int):
     regacl_obj = await reg_funcs.get_registraracl(regid)
     if not regacl_obj:
-        raise HTTPException(status_code=404, detail="Registrar not found")
+        raise HTTPException(status_code=404, detail="Registrar ACL not found")
     return regacl_obj
 
 @router.post("/registrars/{regid}/acl", response_model=schema.RegistrarAcl)

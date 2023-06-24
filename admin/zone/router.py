@@ -26,6 +26,29 @@ async def get_zone(zone_id : int):
         raise HTTPException(status_code=404, detail="Zone not found")
     return zone_obj
 
+@router.get("/zones/{zone_id}/soa", response_model=schema.ZoneSoa)
+async def get_zone_soa(zone_id : int): 
+    zone_soa = await zone_funcs.get_zone_soa(zone_id)
+    if not zone_soa:
+        raise HTTPException(status_code=404, detail="Zone SOA not found")
+    return zone_soa
+
+@router.post("/zones/{zone_id}/soa", response_model=schema.ZoneSoa)
+async def get_zone_soa(zone_id : int, post : schema.ZoneSoa): 
+    return await zone_funcs.update_zone_soa(zone_id, post)
+
+@router.get("/zones/{zone_id}/ns", response_model=list[schema.ZoneNs])
+async def get_zone_ns(zone_id : int): 
+    return await zone_funcs.get_zone_ns(zone_id)
+
+@router.post("/zones/{zone_id}/ns", response_model=list[schema.ZoneNs])
+async def add_zone_ns(zone_id : int, post : schema.ZoneNs): 
+    return await zone_funcs.add_zone_ns(zone_id, post)
+
+@router.delete("/zones/{zone_id}/ns", response_model=list[schema.ZoneNs])
+async def delete_zone_ns(zone_id : int, post : schema.ZoneNs): 
+    return await zone_funcs.del_zone_ns(zone_id, post)
+
 @router.get("/zones/{zone_id}/pricelist", response_model=list[schema.ZonePriceList])
 async def get_zone_pricelist(zone_id : int): 
     return await zone_funcs.get_zone_pricelist(zone_id)
