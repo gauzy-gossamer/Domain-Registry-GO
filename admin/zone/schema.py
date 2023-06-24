@@ -1,19 +1,29 @@
+import re
+
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
-class Zone(BaseModel):
+class ZoneBase(BaseModel):
+    fqdn: str
+    ex_period_min: int
+    ex_period_max: int
+
+    @validator("fqdn")
+    def check_fqdn(cls, value: str):
+        value = value.lower().strip('.')
+        if not re.match(r'^[\w\-\.]{2,255}$', value):
+            raise ValueError("incorrect zone fqdn")
+
+        return value
+
+class Zone(ZoneBase):
     """ Return response data """
     id: int
-    fqdn: str
-    ex_period_min: int
-    ex_period_max: int
 
-class ZoneCreate(BaseModel):
+class ZoneCreate(ZoneBase):
     """ create zone object """
-    fqdn: str
-    ex_period_min: int
-    ex_period_max: int
+    pass
 
 class ZonePriceList(BaseModel):
     """ zone price """

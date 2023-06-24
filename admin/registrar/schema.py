@@ -24,6 +24,15 @@ class RegistrarBase(BaseModel):
     system: Optional[bool]
     epp_requests_limit: Optional[int]
 
+    @validator("handle")
+    def check_handle(cls, value: str):
+        value = value.upper()
+        if not re.match(r'^[\w\-]{2,255}$', value):
+            raise ValueError("incorrect registrar handle")
+        if value[0] == '-' or value[-1] == '-':
+            raise ValueError("incorrect registrar handle")
+        return value
+
 class Registrar(RegistrarBase):
     """ Registrar object """
     id: int

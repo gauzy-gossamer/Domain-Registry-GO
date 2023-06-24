@@ -15,8 +15,8 @@ async def create_zone(post: schema.ZoneCreate):
     return ret
 
 @router.get("/zones", response_model=list[schema.Zone])
-async def get_zones():
-    zones = await zone_funcs.get_zones()
+async def get_zones(zone : str = None):
+    zones = await zone_funcs.get_zones(zone)
     return zones
 
 @router.get("/zones/{zone_id}", response_model=schema.Zone)

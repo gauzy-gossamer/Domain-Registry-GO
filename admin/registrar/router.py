@@ -50,10 +50,10 @@ async def update_registrar_ips(regid : int, post : list[schema.RegistrarIpAddrBa
 async def get_registrar_ips(regid : int):
     return await reg_funcs.get_registrar_zones(regid)
 
-@router.put("/registrars/{regid}/zones", response_model=list[schema.RegistrarZones])
-async def update_registrar_ips(regid : int, post : list[schema.RegistrarZones]):
+@router.post("/registrars/{regid}/zones", response_model=list[schema.RegistrarZones])
+async def add_registrar_ips(regid : int, post : list[schema.RegistrarZones]):
     return await reg_funcs.add_registrar_zones(regid, post)
 
 @router.delete("/registrars/{regid}/zones", response_model=list[schema.RegistrarZones])
-async def update_registrar_ips(regid : int, post : list[schema.RegistrarZones]):
+async def del_registrar_ips(regid : int, post : list[schema.RegistrarZones]):
     return await reg_funcs.del_registrar_zones(regid, post)

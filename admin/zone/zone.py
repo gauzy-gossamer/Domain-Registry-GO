@@ -18,8 +18,10 @@ async def get_zone(zone_id : int):
     query = zones_table.select().where(zones_table.c.id==zone_id)
     return await database.fetch_one(query)
 
-async def get_zones():
+async def get_zones(zone : str = None):
     query = zones_table.select()
+    if zone is not None:
+        query = query.filter(zones_table.c.fqdn == zone)
     return await database.fetch_all(query)
 
 async def get_zone_pricelist(zone_id : int): 

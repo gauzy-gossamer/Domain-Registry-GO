@@ -119,17 +119,17 @@ async def update_registrar_ips(reg_id : int, ips : list[schema.RegistrarIpAddrBa
 
 async def get_registrar_zones(reg_id : int):
     query = registrar_invoice_table.select().with_only_columns(
-        zones_table.c.fqdn, registrar_invoice_table.c.fromdate
-    ).join(zones_table, zones_table.c.id == registrar_invoice_table.c.zone_id
+        zones_table.c.fqdn.label("zone"), registrar_invoice_table.c.fromdate
+    ).join(zones_table, zones_table.c.id == registrar_invoice_table.c.zone
     ).where(registrar_invoice_table.c.registrarid == reg_id, registrar_invoice_table.c.todate == None)
     return await database.fetch_all(query)
 
 async def add_registrar_zones(reg_id : int, reg_zones : list[schema.RegistrarZones]):
     query = registrar_invoice_table.select().with_only_columns(
-        registrar_invoice_table.c.zone_id
+        registrar_invoice_table.c.zone
     ).where(registrar_invoice_table.c.registrarid == reg_id, registrar_invoice_table.c.todate == None)
     reg_zone_objs = await database.fetch_all(query)
-    present_zones = {obj.id for obj in reg_zone_objs}
+    present_zones = {obj.zone for obj in reg_zone_objs}
 
     async with database.transaction():
         for zone in reg_zones:
@@ -142,7 +142,7 @@ async def add_registrar_zones(reg_id : int, reg_zones : list[schema.RegistrarZon
 
             query = registrar_invoice_table.insert().values(
                 registrarid=reg_id,
-                zone_id=zone_obj.id,
+                zone=zone_obj.id,
                 fromdate=zone.fromdate if zone.fromdate is not None else date.today()
             )
             await database.execute(query)
@@ -151,10 +151,10 @@ async def add_registrar_zones(reg_id : int, reg_zones : list[schema.RegistrarZon
 
 async def del_registrar_zones(reg_id : int, reg_zones : list[schema.RegistrarZones]):
     query = registrar_invoice_table.select().with_only_columns(
-        registrar_invoice_table.c.zone_id
+        registrar_invoice_table.c.zone
     ).where(registrar_invoice_table.c.registrarid == reg_id, registrar_invoice_table.c.todate == None)
     reg_zone_objs = await database.fetch_all(query)
-    present_zones = {obj.id for obj in reg_zone_objs}
+    present_zones = {obj.zone for obj in reg_zone_objs}
 
     async with database.transaction():
         for zone in reg_zones:
@@ -167,7 +167,7 @@ async def del_registrar_zones(reg_id : int, reg_zones : list[schema.RegistrarZon
 
             query = registrar_invoice_table.update().values(
                 todate=date.today()
-            ).where(registrar_invoice_table.c.registrarid==reg_id, registrar_invoice_table.c.zone_id==zone_obj.id)
+            ).where(registrar_invoice_table.c.registrarid==reg_id, registrar_invoice_table.c.zone==zone_obj.id)
             await database.execute(query)
 
     return await get_registrar_zones(reg_id)
