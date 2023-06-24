@@ -42,7 +42,7 @@ func GetLogger(ctx context.Context) server.Logger {
 }
 
 func ExecuteEPPCommand(ctx_ context.Context, serv *server.Server, cmd *xml.XMLCommand) (*EPPResult) {
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, GetLogger(ctx_))
     if err != nil {
         return &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_FAILED}
     }

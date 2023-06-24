@@ -34,7 +34,7 @@ func getRegistrar(db *server.DBConn) (uint, string, string, string, error) {
 func TestEPPLogin(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -100,7 +100,7 @@ func pollAck(t *testing.T, serv *server.Server, msgid uint, retcode int, session
 func TestEPPPoll(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -135,35 +135,6 @@ func TestEPPPoll(t *testing.T) {
     logoutSession(t, serv, dbconn, sessionid)
 }
 
-func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
-    var fields ContactFields
-    if contact_type == CONTACT_ORG {
-        fields = ContactFields{
-            ContactId:contact_id,
-            IntPostal:"Company Inc",
-            LocPostal:"Company Inc",
-            LegalAddress:[]string{"address"},
-            Emails:[]string{"first@company.com"},
-            Voice:[]string{"+9 000 99999"},
-            Fax:[]string{},
-            ContactType:CONTACT_ORG,
-        }
-    } else {
-        fields = ContactFields{
-            ContactId:contact_id,
-            IntPostal:"Person",
-            LocPostal:"Person",
-            Emails:[]string{"first@company.com"},
-            Voice:[]string{"+9 000 99999"},
-            Birthday:"1998-01-01",
-            ContactType:CONTACT_PERSON,
-        }
-    }
-
-    fields.Verified.Set(false)
-    return &xml.CreateContact{Fields: fields}
-}
-
 func updateContact(t *testing.T, serv *server.Server, fields ContactFields, retcode int, sessionid uint64) {
     update_contact := &xml.UpdateContact{Fields: fields}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
@@ -177,7 +148,7 @@ func updateContact(t *testing.T, serv *server.Server, fields ContactFields, retc
 func TestEPPContact(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -190,7 +161,7 @@ func TestEPPContact(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
 
     info_contact := xml.InfoContact{Name:test_contact}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
@@ -244,7 +215,7 @@ func updateContactStates(t *testing.T, serv *server.Server, name string, add_sta
 func TestEPPContactStates(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -290,7 +261,7 @@ func updateHost(t *testing.T, serv *server.Server, name string, add_ips []string
 func TestEPPHost(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -352,7 +323,7 @@ func updateHostStates(t *testing.T, serv *server.Server, name string, add_states
 func TestEPPHostStates(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }

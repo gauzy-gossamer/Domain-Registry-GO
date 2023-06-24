@@ -37,6 +37,7 @@ type RegConfig struct {
     SchemaPath string
     GrpcPort int
     ChargeOperations bool
+    CronSchedule string
 }
 
 type ConfigVal struct {
@@ -72,8 +73,11 @@ func parseSection(cfg *ini.File, section_name string, set_to interface{}, params
 
     for _,  val := range params {
         key, err := section.GetKey(val.Name)
-        if err != nil && val.Required {
-            glg.Fatal(err)
+        if err != nil { 
+            if val.Required {
+                glg.Fatal(err)
+            }
+            continue
         }
         switch val.Default.(type) {
             case int:

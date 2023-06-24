@@ -56,6 +56,35 @@ func generateRandomDomain(zone string) string {
     return rand_id + "." + zone
 }
 
+func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
+    var fields ContactFields
+    if contact_type == CONTACT_ORG {
+        fields = ContactFields{
+            ContactId:contact_id,
+            IntPostal:"Company Inc",
+            LocPostal:"Company Inc",
+            LegalAddress:[]string{"address"},
+            Emails:[]string{"first@company.com"},
+            Voice:[]string{"+9 000 99999"},
+            Fax:[]string{},
+            ContactType:CONTACT_ORG,
+        }
+    } else {
+        fields = ContactFields{
+            ContactId:contact_id,
+            IntPostal:"Person",
+            LocPostal:"Person",
+            Emails:[]string{"first@company.com"},
+            Voice:[]string{"+9 000 99999"},
+            Birthday:"1998-01-01",
+            ContactType:CONTACT_PERSON,
+        }
+    }   
+
+    fields.Verified.Set(false)
+    return &xml.CreateContact{Fields: fields}
+}
+
 func createDomain(t *testing.T, serv *server.Server, name string, contact_name string, retcode int, sessionid uint64) {
     create_domain := xml.CreateDomain{Name:name, Registrant:contact_name}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_DOMAIN, Sessionid:sessionid}
@@ -66,14 +95,18 @@ func createDomain(t *testing.T, serv *server.Server, name string, contact_name s
     }
 }
 
-func getExistingContact(t *testing.T, db *server.DBConn, regid uint) string {
+func getExistingContact(t *testing.T, serv *server.Server, db *server.DBConn, regid uint, sessionid uint64) string {
     row := db.QueryRow("SELECT name FROM object_registry obr " +
                        "JOIN object o on obr.id=o.id and o.clid = $1::integer " +
                        "WHERE erdate is null and type = get_object_type_id('contact'::text)", regid)
     var contact_name string
     err := row.Scan(&contact_name)
     if err != nil {
-        t.Error(err)
+        contact_name = "TEST-CONTACT1"
+        create_org := getCreateContact(contact_name, CONTACT_ORG)
+        createContact(t, serv, create_org, EPP_OK, sessionid)
+
+        //t.Error(err)
     }
     return contact_name
 }

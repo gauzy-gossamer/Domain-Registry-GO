@@ -51,7 +51,7 @@ func TestSimple(t *testing.T) {
     <clTRID>XzpZDcPrN7je</clTRID>
   </command>
 </epp>`
-    cmd, err = parser.ParseMessage(xml_msg)
+    _, err = parser.ParseMessage(xml_msg)
     if err == nil {
         t.Error("must be error")
     }

@@ -33,21 +33,22 @@ type DBConn struct {
     Pool *pgxpool.Pool
     tx pgx.Tx
     ctx context.Context
+    logger Logger
 }
 
 /* DBConn object is created per request */
-func AcquireConn(pool *pgxpool.Pool) (*DBConn, error) {
+func AcquireConn(pool *pgxpool.Pool, logger Logger) (*DBConn, error) {
     ctx := context.Background()
     db, err := pool.Acquire(ctx)
     if err != nil {
         return nil, err
     }
 
-    return &DBConn{Conn:db, Pool:pool, ctx:ctx}, nil
+    return &DBConn{Conn:db, Pool:pool, ctx:ctx, logger:logger}, nil
 }
 
 func (d *DBConn) QueryRow(query string, params... any) pgx.Row {
-    glg.Trace(query, params)
+    d.logger.Trace(query, params)
     if d.tx != nil {
         return d.tx.QueryRow(d.ctx, query, params...)
     }
@@ -55,7 +56,7 @@ func (d *DBConn) QueryRow(query string, params... any) pgx.Row {
 }
 
 func (d *DBConn) Query(query string, params... any) (pgx.Rows, error) {
-    glg.Trace(query, params)
+    d.logger.Trace(query, params)
     if d.tx != nil {
         return d.tx.Query(d.ctx, query, params...)
     }
@@ -63,7 +64,7 @@ func (d *DBConn) Query(query string, params... any) (pgx.Rows, error) {
 }
 
 func (d *DBConn) Exec(query string, params... any) (pgconn.CommandTag, error) {
-    glg.Trace(query, params)
+    d.logger.Trace(query, params)
     if d.tx != nil {
         return d.tx.Exec(d.ctx, query, params...)
     }
@@ -71,14 +72,21 @@ func (d *DBConn) Exec(query string, params... any) (pgconn.CommandTag, error) {
 }
 
 func (d *DBConn) Begin() error {
-    glg.Trace("begin transaction")
+    d.logger.Trace("begin transaction")
     var err error
     d.tx, err = d.Conn.Begin(d.ctx)
     return err
 }
 
+func (d *DBConn) BeginSerializable() error {
+    d.logger.Trace("begin serializable transaction")
+    var err error
+    d.tx, err = d.Conn.BeginTx(d.ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+    return err
+}
+
 func (d *DBConn) Commit() error {
-    glg.Trace("commit transaction")
+    d.logger.Trace("commit transaction")
     err := d.tx.Commit(d.ctx)
     d.tx = nil
     return err
@@ -95,7 +103,20 @@ func (d *DBConn) Rollback() {
     }
 }
 
-func  (d *DBConn) Close() {
-    glg.Trace("released connection")
+func (d *DBConn) Close() {
+    d.logger.Trace("released connection")
     d.Conn.Release()
+}
+
+func (d *DBConn) RetryTx(fn func() error) {
+    tries := 3
+    err := fn()
+    for {
+        if pgErr, ok := err.(*pgconn.PgError); !ok || tries < 0 || pgErr.Code != "40001" {
+            break
+        }
+        glg.Trace("retry transaction")
+        err = fn()
+        tries -= 1
+    }
 }

@@ -42,7 +42,7 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
             epp_res.RetCode = 2500
             epp_res.Errors = []string{fmt.Sprint(errv)}
         }
-        dbconn, err := server.AcquireConn(serv.Pool)
+        dbconn, err := server.AcquireConn(serv.Pool, logger)
         if err != nil {
             logger.Error(err)
         } else {
@@ -122,7 +122,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         log.Fatal(err)
     }

@@ -17,4 +17,4 @@ RUN go build -o registry
 
 EXPOSE 8090
 
-CMD ["registry"]
+CMD ["/usr/src/registry/registry"]

@@ -21,7 +21,7 @@ func prepareDB() *server.DBConn {
         glg.Fatal(err)
     }
 
-    dbconn, err := server.AcquireConn(pool)
+    dbconn, err := server.AcquireConn(pool, server.NewLogger(""))
     if err != nil {
         glg.Fatal(err)
     }
@@ -64,7 +64,7 @@ func TestRegexpMatch(t *testing.T) {
     }
 }
 
-func TestGetRegexps(t *testing.T) {
+func TestZoneSpecific(t *testing.T) {
     domains := map[string]bool{
         "domain.net.ru":true,
         "xn--b1agh1afp.ru":true,

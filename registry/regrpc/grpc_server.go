@@ -41,7 +41,7 @@ func (r *registryServer) LoginSystem(ctx context.Context, empty *Empty) (*Sessio
     glg.Trace("grpc LoginSystem")
 
     ret_msg := Session{}
-    dbconn, err := server.AcquireConn(r.mainServer.Pool)
+    dbconn, err := server.AcquireConn(r.mainServer.Pool, server.NewLogger("grpc"))
     if err != nil {
         glg.Error(err)
         return nil, err
@@ -82,7 +82,7 @@ func (r *registryServer) LogoutSystem(ctx context.Context, session *Session) (*S
 
 func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_GetExpiredDomainsServer) error {
     glg.Trace("grpc GetExpiredDomains")
-    dbconn, err := server.AcquireConn(r.mainServer.Pool)
+    dbconn, err := server.AcquireConn(r.mainServer.Pool, server.NewLogger("grpc"))
     if err != nil {
         glg.Error(err)
         return err

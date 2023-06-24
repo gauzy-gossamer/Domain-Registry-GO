@@ -13,7 +13,7 @@ import (
 func TestEPPDomain(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -24,7 +24,8 @@ func TestEPPDomain(t *testing.T) {
         t.Error("failed to get registrar")
     }
     test_domain := generateRandomDomain(zone)
-    test_contact := getExistingContact(t, dbconn, regid)
+    sessionid := fakeSession(t, serv, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
 
     info_domain := xml.InfoDomain{Name:test_domain}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN}
@@ -34,8 +35,6 @@ func TestEPPDomain(t *testing.T) {
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error("should be auth error")
     }
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
     cmd.Sessionid = sessionid
     epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
@@ -64,7 +63,7 @@ func TestEPPDomain(t *testing.T) {
 func TestEPPCheckDomain(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -106,7 +105,7 @@ func updateDomain(t *testing.T, serv *server.Server, name string, registrant str
 func TestEPPUpdateDomain(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -116,10 +115,10 @@ func TestEPPUpdateDomain(t *testing.T) {
     if err != nil {
         t.Error("failed to get registrar")
     }
-    test_contact := getExistingContact(t, dbconn, regid)
-    test_domain := generateRandomDomain(zone)
-
     sessionid := fakeSession(t, serv, dbconn, regid)
+
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
+    test_domain := generateRandomDomain(zone)
 
     createDomain(t, serv, test_domain, test_contact, EPP_OK, sessionid)
 
@@ -153,7 +152,7 @@ func updateDomainHosts(t *testing.T, serv *server.Server, name string, add_hosts
 func TestEPPDomainHosts(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -166,7 +165,7 @@ func TestEPPDomainHosts(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
     test_domain := generateRandomDomain(zone)
 
     createDomain(t, serv, test_domain, test_contact, EPP_OK, sessionid)
@@ -213,7 +212,7 @@ func updateDomainStates(t *testing.T, serv *server.Server, name string, add_stat
 func TestEPPDomainStatus(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -226,7 +225,7 @@ func TestEPPDomainStatus(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
     test_domain := generateRandomDomain(zone)
 
     createDomain(t, serv, test_domain, test_contact, EPP_OK, sessionid)
@@ -277,7 +276,7 @@ func fakeExpdate(db *server.DBConn, domainid uint64) (string, error) {
 func TestEPPDomainRenew(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -290,7 +289,7 @@ func TestEPPDomainRenew(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
     test_domain := generateRandomDomain(zone)
 
     createDomain(t, serv, test_domain, test_contact, EPP_OK, sessionid)
@@ -353,7 +352,7 @@ func transferDomain(t *testing.T, serv *server.Server, name string, acid string,
 func TestEPPDomainTransfer(t *testing.T) {
     serv := prepareServer()
 
-    dbconn, err := server.AcquireConn(serv.Pool)
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
@@ -371,7 +370,7 @@ func TestEPPDomainTransfer(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, dbconn, regid)
+    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
     test_domain := generateRandomDomain(zone)
 
     createDomain(t, serv, test_domain, test_contact, EPP_OK, sessionid)
