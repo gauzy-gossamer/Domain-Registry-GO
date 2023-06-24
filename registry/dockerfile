@@ -1,6 +1,6 @@
 FROM golang:1.20-alpine AS builder
 
-WORKDIR /usr/src/whois
+WORKDIR /usr/src/registry
 
 ENV CGO_ENABLED 0
 ENV GOPATH /go
@@ -11,8 +11,8 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o whois
+RUN go build -o registry
 
-EXPOSE 8043
+EXPOSE 8090
 
-CMD ["whois"]
+CMD ["registry"]
