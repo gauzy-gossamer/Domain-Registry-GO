@@ -1,0 +1,18 @@
+FROM golang:1.20-alpine AS builder
+
+WORKDIR /whois
+
+ENV CGO_ENABLED 0
+ENV GOPATH /go
+ENV GOCACHE /go-build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN go build -o whois
+
+EXPOSE 8043
+
+CMD ["/whois/whois"]
