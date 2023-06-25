@@ -1,0 +1,22 @@
+-- New indexes into history tables
+
+CREATE INDEX domain_history_id_idx ON domain_history (id);
+CREATE INDEX domain_history_zone_idx ON domain_history (zone);
+CREATE INDEX domain_history_exdate_idx ON domain_history (exdate);
+CREATE INDEX domain_history_registrant_idx ON domain_history (registrant);
+CREATE INDEX domain_history_nsset_idx ON domain_history (nsset);
+CREATE INDEX domain_contact_map_history_contactid_idx ON domain_contact_map_history (contactid);
+CREATE INDEX domain_contact_map_history_domainid_idx ON domain_contact_map_history (domainid);
+CREATE INDEX nsset_history_id_idx ON nsset_history (id);
+CREATE INDEX host_history_nssetid_idx ON host_history (nssetid);
+CREATE INDEX host_history_id_idx ON host_history (id);
+CREATE INDEX host_ipaddr_map_history_id_idx ON host_ipaddr_map_history (id);
+CREATE INDEX host_ipaddr_map_history_hostid_idx ON host_ipaddr_map_history (hostid);
+CREATE INDEX host_ipaddr_map_history_nssetid_idx ON host_ipaddr_map_history (nssetid);
+CREATE INDEX nsset_contact_map_history_nssetid_idx ON nsset_contact_map_history (nssetid);
+CREATE INDEX nsset_contact_map_history_contactid_idx ON nsset_contact_map_history (contactid);
+CREATE INDEX contact_history_id_idx ON contact_history (id);
+CREATE INDEX enumval_history_domainid_idx ON enumval_history (domainid);
+CREATE INDEX object_history_id_idx ON object_history (id);
+CREATE INDEX object_history_clid_idx ON object_history (clid);
+CREATE INDEX object_history_upid_idx ON object_history (upid);
