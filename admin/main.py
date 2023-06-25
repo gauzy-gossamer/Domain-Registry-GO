@@ -1,11 +1,13 @@
 import uvicorn
 from models.database import database
-from zone.router import router as zone_router
-from registrar.router import router as registrar_router
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+from zone.router import router as zone_router
+from registrar.router import router as registrar_router
+from balance.router import router as balance_router
 
 app = FastAPI()
 
@@ -25,9 +27,9 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-
 app.include_router(zone_router)
 app.include_router(registrar_router)
+app.include_router(balance_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8088)

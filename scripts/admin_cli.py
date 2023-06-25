@@ -93,6 +93,15 @@ class AdminAPI():
     async def registrar_del_zone(self, regid : int, fqdn : str):
         return await self._call(f"/registrars/{regid}/zones", [{'zone':fqdn}], method='delete')
 
+    async def list_registrar_balance(self):
+        return await self._call(f"/balance", {})
+
+    async def get_registrar_balance(self, regid : int):
+        return await self._call(f"/balance/{regid}", {})
+
+    async def add_registrar_balance(self, regid : int, balance_change: float, zone: str):
+        return await self._call(f"/balance/{regid}", {'balance_change':balance_change, 'zone':zone}, method='post')
+
 async def get_registrar_id(admapi : AdminAPI, handle : str) -> int:
     registrars = await admapi.list_registrars(handle)
     if len(registrars) != 1 or handle is None:
@@ -149,11 +158,16 @@ async def main() -> None:
     parser.add_argument('--update_retr',  type=int, default=3600, help="soa refresh")
     parser.add_argument('--minimum',  type=int, default=3600, help="soa refresh")
     parser.add_argument('--hostmaster',  type=str, default=None, help="soa hostmaster")
-    parser.add_argument('--ns-fqdn',  type=str, default=None, help="soa ns")
+    parser.add_argument('--ns-fqdn', dest='ns_fqdn', type=str, default=None, help="soa ns")
 
     # ns params
     parser.add_argument('--fqdn',  type=str, default=None, help="soa ns")
     parser.add_argument('--addrs',  type=str, default='', help="soa ns")
+
+    parser.add_argument('--list-balance', dest='list_balance', action='store_true', default=False, help="list balance: --list-balance [--handle REGISTRAR]")
+    parser.add_argument('--add-registrar-balance', dest='add_registrar_balance', action='store_true', default=False, help="add balance: --add-registrar-balance --handle REGISTRAR --zone FQDN --balance-change CHANGE")
+
+    parser.add_argument('--balance-change', dest='balance_change', type=float, default=None, help="balance change")
 
     args = parser.parse_args()
 
@@ -161,6 +175,7 @@ async def main() -> None:
 
     admapi = AdminAPI(config['admin_host'])
 
+    # zone commands
     if args.list_zone:
         zones = await admapi.list_zones()
         for zone in zones:
@@ -206,6 +221,7 @@ async def main() -> None:
         pricelist = await admapi.set_zone_pricelist(zone_id, args.operation, args.price, args.valid_from)
         print(pricelist)
 
+    # registrar commands
     if args.list_registrars:
         registrars = await admapi.list_registrars()
         for reg in registrars:
@@ -244,6 +260,25 @@ async def main() -> None:
         regid = await get_registrar_id(admapi, args.handle)
         zone = await admapi.registrar_del_zone(regid, args.zone)
         print(zone)
+
+    # balance commands
+    if args.list_balance:
+        if args.handle is None:
+            registrar_credits = await admapi.list_registrar_balance()
+        else:
+            regid = await get_registrar_id(admapi, args.handle)
+            registrar_credits = await admapi.get_registrar_balance(regid)
+        for credit in registrar_credits:
+            print(credit)
+
+    if args.add_registrar_balance:
+        regid = await get_registrar_id(admapi, args.handle)
+        registrar_credits = await admapi.add_registrar_balance(regid, args.balance_change, args.zone)
+        if 'detail' in registrar_credits:
+            print(registrar_credits)
+        else:
+            for credit in registrar_credits:
+                print(credit)
 
 if __name__ == '__main__':
     asyncio.run(main())

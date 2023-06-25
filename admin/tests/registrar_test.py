@@ -23,7 +23,7 @@ def test_get_registrars(temp_db):
     with TestClient(app) as client:
         response = client.get("/registrars")
     assert response.status_code == 200
-    zones = response.json()
+    registrars = response.json()
 
 def test_create_registrar(temp_db):
     request_data = {"handle":"TT1-REG"}
