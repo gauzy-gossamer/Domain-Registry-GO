@@ -143,7 +143,7 @@ async def main() -> None:
     parser.add_argument('--add-zone-ns', dest='add_zone_ns', action='store_true', default=False, help="add zone ns: --add-zone-ns --zone fqdn --fqdn FQDN --addrs ADDRS")
     parser.add_argument('--del-zone-ns', dest='del_zone_ns', action='store_true', default=False, help="del zone ns: --del-zone-ns --zone fqdn --fqdn FQDN")
     parser.add_argument('--zone-pricelist', dest='zone_pricelist', action='store_true', default=False, help="list zone price list: --zone-pricelist --zone fqdn")
-    parser.add_argument('--zone-set-price', dest='zone_set_price', action='store_true', default=False, help="set zone price: --zone-set-price --zone icasd --operation CreateDomain --price 0")
+    parser.add_argument('--zone-set-price', dest='zone_set_price', action='store_true', default=False, help="set zone price: --zone-set-price --zone ZONE --operation CreateDomain --price 0")
 
     parser.add_argument('--zone',  type=str, default=None, help="zone fqdn")
     parser.add_argument('--operation',  type=str, default=None, help="price list operation")
@@ -155,14 +155,14 @@ async def main() -> None:
     parser.add_argument('--ttl',  type=int, default=14400, help="soa ttl")
     parser.add_argument('--expiry',  type=int, default=2592000, help="soa expiry")
     parser.add_argument('--refresh',  type=int, default=86400, help="soa refresh")
-    parser.add_argument('--update_retr',  type=int, default=3600, help="soa refresh")
-    parser.add_argument('--minimum',  type=int, default=3600, help="soa refresh")
+    parser.add_argument('--update_retr',  type=int, default=3600, help="soa update retry")
+    parser.add_argument('--minimum',  type=int, default=3600, help="soa minimum")
     parser.add_argument('--hostmaster',  type=str, default=None, help="soa hostmaster")
     parser.add_argument('--ns-fqdn', dest='ns_fqdn', type=str, default=None, help="soa ns")
 
     # ns params
-    parser.add_argument('--fqdn',  type=str, default=None, help="soa ns")
-    parser.add_argument('--addrs',  type=str, default='', help="soa ns")
+    parser.add_argument('--fqdn',  type=str, default=None, help="zone ns-server")
+    parser.add_argument('--addrs',  type=str, default='', help="zone NS IP addresses")
 
     parser.add_argument('--list-balance', dest='list_balance', action='store_true', default=False, help="list balance: --list-balance [--handle REGISTRAR]")
     parser.add_argument('--add-registrar-balance', dest='add_registrar_balance', action='store_true', default=False, help="add balance: --add-registrar-balance --handle REGISTRAR --zone FQDN --balance-change CHANGE")

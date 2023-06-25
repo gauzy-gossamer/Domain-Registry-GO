@@ -38,15 +38,15 @@ services:
     links:
        - regdb
 
-#  regcore:
-#    restart: always
-#    container_name: regcore
-#    build:
-#        context: ./registry
-#    ports:
-#      - 8090:8090
-#    links:
-#       - regdb
+  regcore:
+    restart: always
+    container_name: regcore
+    build:
+        context: ./registry
+    ports:
+      - 8090:8090
+    links:
+       - regdb
 
 volumes:
   registry_db:

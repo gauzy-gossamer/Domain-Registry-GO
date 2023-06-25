@@ -13,6 +13,8 @@ COPY . .
 
 RUN go build -o whois
 
+RUN cp server.conf.example server.conf
+
 EXPOSE 8043
 
-CMD ["whois"]
+CMD ["/usr/src/whois/whois"]
