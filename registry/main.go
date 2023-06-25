@@ -17,6 +17,7 @@ import (
     . "registry/epp/eppcom"
     "registry/xml"
     "registry/regrpc"
+    "registry/maintenance"
 
     "github.com/kpango/glg"
 )
@@ -133,6 +134,8 @@ func main() {
     dbconn.Close()
 
     go regrpc.StartgRPCServer(&serv)
+
+    go maintenance.Maintenance(&serv)
 
     host_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, serv.RGconf.HTTPConf.Port)
 

@@ -154,6 +154,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
         {"DomainMaxHosts", "domain_max_hosts", 0, true},
         {"SchemaPath", "schema_path", "", true},
         {"ChargeOperations", "epp_operations_charging", false, true},
+        {"CronSchedule", "cron_schedule", "", false},
     })
 
     parseSection(cfg, "http", &r.HTTPConf, []ConfigVal {
