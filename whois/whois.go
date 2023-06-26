@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "time"
+    "strings"
     "github.com/jackc/pgtype"
 )
 
@@ -30,35 +31,38 @@ func FormatDatePG(date pgtype.Timestamp) string {
 }
 
 func getStates(domain *Domain) string {
-    states := "REGISTERED, "
+    var b strings.Builder
+    b.WriteString("REGISTERED, ")
     if len(domain.Hosts) == 0 {
-        states += "NOT "
+        b.WriteString("NOT ")
     }
-    states += "DELEGATED, "
+    b.WriteString("DELEGATED, ")
     if domain.Verified {
-        states += "VERIFIED"
+        b.WriteString("VERIFIED")
     } else {
-        states += "NOT VERIFIED"
+        b.WriteString("NOT VERIFIED")
     }
 
     if domain.PendingDelete {
-        states += ", pendingDelete"
+        b.WriteString(", pendingDelete")
     }
 
-    return states
+    return b.String()
 }
 
 func (w *WhoisResponse) FormatResponse(whois_fields []*WhoisField) string {
-    response := w.Header
+    var b strings.Builder
+    b.WriteString(w.Header)
     for _, whois_field := range whois_fields {
-        response += fmt.Sprintf("%-15s%s\r\n", whois_field.field, whois_field.value)
+        b.WriteString(fmt.Sprintf("%-15s%s\n", whois_field.field, whois_field.value))
     }
-    return response
+    b.WriteString("\n")
+    return b.String()
 }
 
 func (w *WhoisResponse) EmptyResponse() string {
     response := w.Header
-    response += "No entries found for the selected source(s).\r\n"
+    response += "No entries found for the selected source(s).\n\n"
     return response
 }
 
@@ -78,7 +82,7 @@ func (w *WhoisResponse) FormatDomain(domain *Domain) string {
     }
 
     whois_fields = append(whois_fields, &WhoisField{field:"registrar:", value:domain.Registrar})
-    if domain.Url.Status != pgtype.Null {    
+    if domain.Url.Status != pgtype.Null {
         whois_fields = append(whois_fields, &WhoisField{field:"admin-contact:", value:domain.Url.String})
     }
 

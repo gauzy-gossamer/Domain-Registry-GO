@@ -28,8 +28,8 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
     cmd, errv := serv.Xml_parser.ParseMessage(XML)
 
     /* generate server transaction id before main procedure */
-    cmd.SvTRID = server.GenerateTRID(10)
-    logger := server.NewLogger(cmd.SvTRID)
+    SvTRID := server.GenerateTRID(10)
+    logger := server.NewLogger(SvTRID)
     ctx := context.WithValue(context.Background(), "logger", logger)
 
     if errv != nil {
@@ -52,6 +52,7 @@ func process_command(w http.ResponseWriter, req *http.Request, serv *server.Serv
         }
         return xml.GenerateResponse(&epp_res, "", "")
     } else {
+        cmd.SvTRID = SvTRID
         if cmd.CmdType == EPP_HELLO {
             return xml.GenerateGreeting()
         }

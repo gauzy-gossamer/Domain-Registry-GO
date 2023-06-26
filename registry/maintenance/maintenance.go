@@ -105,6 +105,7 @@ func Maintenance(serv *server.Server) {
             logger.Error(err)
             return
         }
+        defer dbconn.Close()
 
         err = epp.UpdateObjectStates(dbconn, 0)
         if err != nil {

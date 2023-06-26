@@ -7,7 +7,6 @@ import (
     "net/http"
     "log"
     "io"
-    "strings"
     "bufio"
     "whois/server"
     "github.com/jackc/pgx/v5"
@@ -20,18 +19,26 @@ var serv server.Server
 func process_query(query string) (string, error) {
     server.Queries.Inc()
 
-    domain_name := strings.TrimSpace(query)
+    opts, domain_name, err := parseWhoisQuery(query)
+    if err != nil {
+        return "", err
+    }
+
+    glg.Trace(opts["type"], domain_name)
 
     whois_resp := WhoisResponse{Header:serv.RGconf.Header}
 
-    domain, err := getDomain(domain_name)
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            return whois_resp.EmptyResponse(), nil
+    if opts["type"] == "domain" {
+        domain, err := getDomain(domain_name)
+        if err != nil {
+            if err == pgx.ErrNoRows {
+                return whois_resp.EmptyResponse(), nil
+            }
+            return "", err
         }
-        return "", err
+        return whois_resp.FormatDomain(domain), nil
     }
-    return whois_resp.FormatDomain(domain), nil
+    return whois_resp.EmptyResponse(), nil
 }
 
 func handleTCPRequest(conn net.Conn) {
@@ -47,8 +54,6 @@ func handleTCPRequest(conn net.Conn) {
             return
         }
 
-        /* TODO validate input */
-
         whois_response, err := process_query(request)
         if err != nil {
             glg.Error(err)
@@ -58,6 +63,7 @@ func handleTCPRequest(conn net.Conn) {
         if _, err := conn.Write([]byte(whois_response)); err != nil {
             glg.Error(err)
         }
+        break
     }
 }
 

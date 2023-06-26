@@ -6,6 +6,8 @@ ENV CGO_ENABLED 0
 ENV GOPATH /go
 ENV GOCACHE /go-build
 
+RUN apk add --update curl
+
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -18,3 +20,5 @@ RUN cp server.conf.example server.conf
 EXPOSE 8043
 
 CMD ["/usr/src/whois/whois"]
+
+HEALTHCHECK --interval=1m CMD curl --fail http://127.0.0.1:8083/metrics || exit 1
