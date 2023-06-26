@@ -4,10 +4,14 @@ import grpc
 import regrpc.registry_pb2 as regpb2
 import regrpc.registry_pb2_grpc as regpb2_grpc
 
+from config import read_config
+
 def run():
+    config = read_config()
+
     # domain removal is processed through grpc, so that all relevant checks are performed,
     # and potentially unlinked objects are removed as well
-    with grpc.insecure_channel('localhost:50051') as channel:
+    with grpc.insecure_channel(config['grpc_host']) as channel:
         stub = regpb2_grpc.RegistryStub(channel)
 
         response = stub.LoginSystem(regpb2.Empty())

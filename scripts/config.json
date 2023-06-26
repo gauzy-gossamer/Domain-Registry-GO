@@ -1,4 +1,5 @@
 {
     "db":{"host":"localhost", "password":"dbpassword", "user":"registry", "port":"7432"},
-    "admin_host":"http://127.0.0.1:8088"  
+    "admin_host":"http://127.0.0.1:8088",
+    "grpc_host":"127.0.0.1:51015"
 }

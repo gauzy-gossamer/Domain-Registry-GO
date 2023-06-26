@@ -36,6 +36,7 @@ type RegConfig struct {
     DomainMaxHosts int
     SchemaPath string
     GrpcPort int
+    GrpcHost string
     ChargeOperations bool
     CronSchedule string
 }
@@ -167,6 +168,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
 
     parseSection(cfg, "grpc", r, []ConfigVal {
         {"GrpcPort", "port", 0, true},
+        {"GrpcHost", "host", "", true},
     })
 
     /* needs support for syslog */

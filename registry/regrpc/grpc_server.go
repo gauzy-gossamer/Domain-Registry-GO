@@ -142,7 +142,7 @@ func (r *registryServer) DeleteDomain(ctx context.Context, domain *Domain) (*Sta
 
 func StartgRPCServer(serv *server.Server) {
     port := serv.RGconf.GrpcPort
-    server_addr := fmt.Sprintf("localhost:%d", port)
+    server_addr := fmt.Sprintf("%v:%d", serv.RGconf.GrpcHost, port)
     lis, err := net.Listen("tcp", server_addr)
     if err != nil {
         glg.Fatal("failed to start gRPC:", err)

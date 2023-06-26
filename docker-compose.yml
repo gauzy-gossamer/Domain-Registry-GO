@@ -21,13 +21,12 @@ services:
     container_name: regadmin
     build:
         context: ./admin
-    volumes:
-      - regadmin:/usr/src/app
     ports:
       - 8088:8088
     links:
        - regdb
 
+  # whois service
   regwhois:
     restart: always
     container_name: regwhois
@@ -38,18 +37,20 @@ services:
     links:
        - regdb
 
+  # main EPP service
   regcore:
     restart: always
     container_name: regcore
     build:
         context: ./registry
     ports:
+      # EPP
       - 8090:8090
+      # gRPC
+      - 51015:51015
     links:
        - regdb
 
 volumes:
   registry_db:
-    driver: local
-  regadmin:
     driver: local
