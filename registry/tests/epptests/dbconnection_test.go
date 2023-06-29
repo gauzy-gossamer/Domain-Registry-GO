@@ -78,7 +78,7 @@ func TestTxRetry(t *testing.T) {
     })
 
     select {
-        case _ = <-done:
+        case <-done:
             break
         case <-time.After(time.Second*2):
             t.Error("timeout")

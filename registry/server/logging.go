@@ -42,7 +42,7 @@ func (l *Logger) SetPrefix(prefix string) {
 func (l *Logger) Info(params... any) {
 	t_params := []any{l.prefix}
 	t_params = append(t_params, params...)
-    glg.Info(t_params...)
+    _ = glg.Info(t_params...)
 }
 
 func (l *Logger) Error(params... any) {

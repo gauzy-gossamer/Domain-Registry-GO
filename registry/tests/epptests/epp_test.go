@@ -47,28 +47,30 @@ func TestEPPLogin(t *testing.T) {
         t.Error("failed to get registrar")
         return
     }
-    login_cmd := xml.XMLCommand{CmdType:EPP_LOGIN}
+    login_cmd := xml.XMLCommand{CmdType:EPP_LOGIN} 
+
+    eppc := epp.NewEPPContext(serv)
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password + "err", Lang:LANG_EN, Fingerprint:cert}
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert + "err"}
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle + "err", PW:password, Lang:LANG_EN, Fingerprint:cert}
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert}
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &login_cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error(epp_res.Msg)
     }
@@ -82,16 +84,16 @@ func TestEPPLogin(t *testing.T) {
 
     logout_cmd := xml.XMLCommand{CmdType:EPP_LOGOUT, Sessionid:sessionid}
 
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &logout_cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &logout_cmd)
     if epp_res.RetCode != EPP_CLOSING_LOGOUT {
         t.Error(epp_res.Msg)
     }
 }
 
-func pollAck(t *testing.T, serv *server.Server, msgid uint, retcode int, sessionid uint64) {
+func pollAck(t *testing.T, eppc *epp.EPPContext, msgid uint, retcode int, sessionid uint64) {
     poll_ack_cmd := xml.XMLCommand{CmdType:EPP_POLL_ACK, Sessionid:sessionid}
     poll_ack_cmd.Content = fmt.Sprint(msgid)
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &poll_ack_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &poll_ack_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
@@ -113,15 +115,17 @@ func TestEPPPoll(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
+    eppc := epp.NewEPPContext(serv)
+
     poll_cmd := xml.XMLCommand{CmdType:EPP_POLL_REQ, Sessionid:sessionid}
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &poll_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &poll_cmd)
     /* if no message, create it */
     if epp_res.RetCode == EPP_POLL_NO_MSG {
         _, err = dbreg.CreatePollMessage(dbconn, regid, POLL_LOW_CREDIT)
         if err != nil {
             t.Error(err)
         }
-        epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &poll_cmd)
+        epp_res = eppc.ExecuteEPPCommand(context.Background(), &poll_cmd)
     }
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)
@@ -130,16 +134,16 @@ func TestEPPPoll(t *testing.T) {
     if !ok {
         t.Error("should be ok")
     }
-    pollAck(t, serv, poll_msg.Msgid, EPP_OK, sessionid) 
+    pollAck(t, eppc, poll_msg.Msgid, EPP_OK, sessionid) 
 
     logoutSession(t, serv, dbconn, sessionid)
 }
 
-func updateContact(t *testing.T, serv *server.Server, fields ContactFields, retcode int, sessionid uint64) {
+func updateContact(t *testing.T, eppc *epp.EPPContext, fields ContactFields, retcode int, sessionid uint64) {
     update_contact := &xml.UpdateContact{Fields: fields}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
     update_cmd.Content = update_contact
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg)
     }
@@ -161,28 +165,30 @@ func TestEPPContact(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, serv, dbconn, regid, sessionid)
+    eppc := epp.NewEPPContext(serv)
+
+    test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
 
     info_contact := xml.InfoContact{Name:test_contact}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
 
     org_handle := "TEST-" + server.GenerateRandString(8)
     create_org := getCreateContact(org_handle, CONTACT_ORG)
-    createContact(t, serv, create_org, EPP_OK, sessionid)
+    createContact(t, eppc, create_org, EPP_OK, sessionid)
 
     person_handle := "TEST-" + server.GenerateRandString(8)
     create_contact := getCreateContact(person_handle, CONTACT_PERSON)
-    createContact(t, serv, create_contact, EPP_OK, sessionid)
+    createContact(t, eppc, create_contact, EPP_OK, sessionid)
 
     info_contact = xml.InfoContact{Name:person_handle}
     cmd = xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
@@ -194,19 +200,19 @@ func TestEPPContact(t *testing.T) {
 
     fields := ContactFields{ContactId:person_handle}
     fields.Verified.Set(true)
-    updateContact(t, serv, fields, EPP_OK, sessionid)
+    updateContact(t, eppc, fields, EPP_OK, sessionid)
 
-    deleteObject(t, serv, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
-    deleteObject(t, serv, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+    deleteObject(t, eppc, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+    deleteObject(t, eppc, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
 
     logoutSession(t, serv, dbconn, sessionid)
 }
 
-func updateContactStates(t *testing.T, serv *server.Server, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
+func updateContactStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
     update_contact := xml.UpdateContact{Fields:ContactFields{ContactId:name}, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
     update_cmd.Content = &update_contact
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -228,31 +234,33 @@ func TestEPPContactStates(t *testing.T) {
 
     sessionid := fakeSession(t, serv, dbconn, regid)
 
+    eppc := epp.NewEPPContext(serv)
+
     test_contact := "TEST-" + server.GenerateRandString(8)
     create_org := getCreateContact(test_contact, CONTACT_PERSON)
-    createContact(t, serv, create_org, EPP_OK, sessionid)
+    createContact(t, eppc, create_org, EPP_OK, sessionid)
 
-    updateContactStates(t, serv, test_contact, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateContactStates(t, eppc, test_contact, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
     /* state allowed only for domains */
-    updateContactStates(t, serv, test_contact, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
-    updateContactStates(t, serv, test_contact, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
+    updateContactStates(t, eppc, test_contact, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateContactStates(t, eppc, test_contact, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
 
     fields := ContactFields{ContactId:test_contact}
     fields.Verified.Set(true)
-    updateContact(t, serv, fields, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
+    updateContact(t, eppc, fields, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
 
-    updateContactStates(t, serv, test_contact, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
+    updateContactStates(t, eppc, test_contact, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
 
-    deleteObject(t, serv, test_contact, EPP_DELETE_CONTACT, EPP_OK, sessionid)
+    deleteObject(t, eppc, test_contact, EPP_DELETE_CONTACT, EPP_OK, sessionid)
 
     logoutSession(t, serv, dbconn, sessionid)
 }
 
-func updateHost(t *testing.T, serv *server.Server, name string, add_ips []string, rem_ips []string, retcode int, sessionid uint64) {
+func updateHost(t *testing.T, eppc *epp.EPPContext, name string, add_ips []string, rem_ips []string, retcode int, sessionid uint64) {
     update_host := xml.UpdateHost{Name:name, AddAddrs:add_ips, RemAddrs:rem_ips}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
     update_cmd.Content = &update_host
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -273,6 +281,7 @@ func TestEPPHost(t *testing.T) {
     }
 
     sessionid := fakeSession(t, serv, dbconn, regid)
+    eppc := epp.NewEPPContext(serv)
 
     test_host := "ns1." + generateRandomDomain(zone) 
     non_subordinate_host := "ns1." + generateRandomDomain("nonexistant.ru")
@@ -281,28 +290,28 @@ func TestEPPHost(t *testing.T) {
     cmd := xml.XMLCommand{CmdType:EPP_INFO_HOST, Sessionid:sessionid}
     cmd.Content = &info_host
 
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
     if epp_res.RetCode != EPP_OBJECT_NOT_EXISTS {
         t.Error("should be ok", epp_res.RetCode)
     }
 
-    createHost(t, serv, test_host, []string{"127.88.88.88"}, EPP_OK, sessionid)
-    createHost(t, serv, non_subordinate_host, []string{"127.88.88.88"}, EPP_PARAM_VALUE_POLICY, sessionid)
-    createHost(t, serv, non_subordinate_host, []string{}, EPP_OK, sessionid)
+    createHost(t, eppc, test_host, []string{"127.88.88.88"}, EPP_OK, sessionid)
+    createHost(t, eppc, non_subordinate_host, []string{"127.88.88.88"}, EPP_PARAM_VALUE_POLICY, sessionid)
+    createHost(t, eppc, non_subordinate_host, []string{}, EPP_OK, sessionid)
 
-    epp_res = epp.ExecuteEPPCommand(context.Background(), serv, &cmd)
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
     if epp_res.RetCode != EPP_OK {
         t.Error("should be ok", epp_res.RetCode)
     }
 
-    updateHost(t, serv, test_host, []string{"127.1110.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateHost(t, eppc, test_host, []string{"127.1110.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
 //    updateHost(t, serv, test_host, []string{}, []string{"127.0.0.1"}, EPP_PARAM_VALUE_POLICY, sessionid)
-    updateHost(t, serv, test_host, []string{"127.0.0.1"}, []string{}, EPP_OK, sessionid)
-    updateHost(t, serv, non_subordinate_host, []string{"127.0.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
-    updateHost(t, serv, test_host, []string{}, []string{"127.0.0.1"}, EPP_OK, sessionid)
+    updateHost(t, eppc, test_host, []string{"127.0.0.1"}, []string{}, EPP_OK, sessionid)
+    updateHost(t, eppc, non_subordinate_host, []string{"127.0.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_OK, sessionid)
 
-    deleteObject(t, serv, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
-    deleteObject(t, serv, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)
+    deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
+    deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)
 
     err = serv.Sessions.LogoutSession(dbconn, sessionid)
     if err != nil {
@@ -310,11 +319,11 @@ func TestEPPHost(t *testing.T) {
     }
 }
 
-func updateHostStates(t *testing.T, serv *server.Server, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
+func updateHostStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
     update_host := xml.UpdateHost{Name:name, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
     update_cmd.Content = &update_host
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &update_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &update_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
     }
@@ -334,22 +343,24 @@ func TestEPPHostStates(t *testing.T) {
         t.Error("failed to get registrar")
     }
 
+    eppc := epp.NewEPPContext(serv)
+
     sessionid := fakeSession(t, serv, dbconn, regid)
 
     test_host := "ns1." + generateRandomDomain(zone)
 
-    createHost(t, serv, test_host, []string{}, EPP_OK, sessionid)
+    createHost(t, eppc, test_host, []string{}, EPP_OK, sessionid)
 
-    updateHostStates(t, serv, test_host, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateHostStates(t, eppc, test_host, []string{"clientUpdateProhibited","nonexistant"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
     /* state allowed only for domains */
-    updateHostStates(t, serv, test_host, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
-    updateHostStates(t, serv, test_host, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
+    updateHostStates(t, eppc, test_host, []string{"clientHold"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+    updateHostStates(t, eppc, test_host, []string{"clientUpdateProhibited"}, []string{}, EPP_OK, sessionid)
 
-    updateHost(t, serv, test_host, []string{"10.10.0.1"}, []string{}, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
+    updateHost(t, eppc, test_host, []string{"10.10.0.1"}, []string{}, EPP_STATUS_PROHIBITS_OPERATION, sessionid)
 
-    updateHostStates(t, serv, test_host, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
+    updateHostStates(t, eppc, test_host, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
 
-    deleteObject(t, serv, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
+    deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
 
     logoutSession(t, serv, dbconn, sessionid)
 }

@@ -8,7 +8,7 @@ import (
 
 type Server struct {
     RGconf RegConfig
-    Xml_parser xml.XMLParser
+    XmlParser xml.XMLParser
     Sessions EPPSessions
     Pool *pgxpool.Pool
 }

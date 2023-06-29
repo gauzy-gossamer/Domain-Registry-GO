@@ -9,9 +9,9 @@ import (
     "registry/xml"
 )
 
-func prepareServer() *server.Server {
+func PrepareServer(config string) *server.Server {
     serv := server.Server{}
-    serv.RGconf.LoadConfig("../../server.conf")
+    serv.RGconf.LoadConfig(config)
     var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {
@@ -21,6 +21,10 @@ func prepareServer() *server.Server {
     serv.Sessions.MaxRegistrarSessions = serv.RGconf.MaxRegistrarSessions
 
     return &serv
+}
+
+func prepareServer() *server.Server {
+    return PrepareServer("../../server.conf")
 }
 
 func getRegistrarAndZone(db *server.DBConn, exclude_reg uint) (uint, string, string, error) {
@@ -85,17 +89,18 @@ func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
     return &xml.CreateContact{Fields: fields}
 }
 
-func createDomain(t *testing.T, serv *server.Server, name string, contact_name string, retcode int, sessionid uint64) {
+func createDomain(t *testing.T, eppc *epp.EPPContext, name string, contact_name string, retcode int, sessionid uint64) {
     create_domain := xml.CreateDomain{Name:name, Registrant:contact_name}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_DOMAIN, Sessionid:sessionid}
     create_cmd.Content = &create_domain
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &create_cmd)
+    
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
 }
 
-func getExistingContact(t *testing.T, serv *server.Server, db *server.DBConn, regid uint, sessionid uint64) string {
+func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, regid uint, sessionid uint64) string {
     row := db.QueryRow("SELECT name FROM object_registry obr " +
                        "JOIN object o on obr.id=o.id and o.clid = $1::integer " +
                        "WHERE erdate is null and type = get_object_type_id('contact'::text)", regid)
@@ -104,37 +109,37 @@ func getExistingContact(t *testing.T, serv *server.Server, db *server.DBConn, re
     if err != nil {
         contact_name = "TEST-CONTACT1"
         create_org := getCreateContact(contact_name, CONTACT_ORG)
-        createContact(t, serv, create_org, EPP_OK, sessionid)
+        createContact(t, eppc, create_org, EPP_OK, sessionid)
 
         //t.Error(err)
     }
     return contact_name
 }
 
-func deleteObject(t *testing.T, serv *server.Server, name string, cmdtype int, retcode int, sessionid uint64) {
+func deleteObject(t *testing.T, eppc *epp.EPPContext, name string, cmdtype int, retcode int, sessionid uint64) {
     delete_obj := xml.DeleteObject{Name:name}
     delete_cmd := xml.XMLCommand{CmdType:cmdtype, Sessionid:sessionid}
     delete_cmd.Content = &delete_obj
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &delete_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &delete_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
 }
 
-func createHost(t *testing.T, serv *server.Server, name string, ips []string, retcode int, sessionid uint64) {
+func createHost(t *testing.T, eppc *epp.EPPContext, name string, ips []string, retcode int, sessionid uint64) {
     create_host := xml.CreateHost{Name:name, Addr:ips}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_HOST, Sessionid:sessionid}
     create_cmd.Content = &create_host
-    epp_res := epp.ExecuteEPPCommand(context.Background(), serv, &create_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
 }
 
-func createContact(t *testing.T, serv *server.Server, create_contact *xml.CreateContact, retcode int, sessionid uint64) {
+func createContact(t *testing.T, eppc *epp.EPPContext, create_contact *xml.CreateContact, retcode int, sessionid uint64) {
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_CONTACT, Sessionid:sessionid}
     create_cmd.Content = create_contact
-    epp_res := epp.ExecuteEPPCommand(context.Background(),serv, &create_cmd)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &create_cmd)
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.Msg)
     }

@@ -256,7 +256,11 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     }
 
     /* acquirer registrar doesn't have permissions for the zone in which domain is registered */
-    if !testRegistrarZoneAccess(ctx.dbconn, acquirer.Id.Get(), domain_data.ZoneId) {
+    if ok, err := testRegistrarZoneAccess(ctx.dbconn, acquirer.Id.Get(), domain_data.ZoneId); !ok || err != nil {
+        if err != nil {
+            glg.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"acID doesn't have permissions to use this zone"}}
     }
 
