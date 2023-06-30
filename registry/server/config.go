@@ -35,6 +35,7 @@ type RegConfig struct {
     DomainMinHosts int
     DomainMaxHosts int
     SchemaPath string
+    SchemaNs string
     GrpcPort int
     GrpcHost string
     ChargeOperations bool
@@ -154,6 +155,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
         {"DomainMinHosts", "domain_min_hosts", 0, true},
         {"DomainMaxHosts", "domain_max_hosts", 0, true},
         {"SchemaPath", "schema_path", "", true},
+        {"SchemaNs", "schema_ns", "", false},
         {"ChargeOperations", "epp_operations_charging", false, true},
         {"CronSchedule", "cron_schedule", "", false},
     })

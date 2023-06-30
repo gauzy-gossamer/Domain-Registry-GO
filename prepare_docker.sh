@@ -1,8 +1,10 @@
 #!/bin/bash
 
+python=python3
+
 # copy registry conf
-cp -r config/xsd_schemas registry
-cp config/server.conf registry/server.conf.example
+$python scripts/build_template.py config/xsd_schemas registry
+$python scripts/build_template.py config/server.conf registry/server.conf.example
 cp cert/server/server.key registry/test-key.pem
 cp cert/server/server.crt registry/test-cert.pem
 

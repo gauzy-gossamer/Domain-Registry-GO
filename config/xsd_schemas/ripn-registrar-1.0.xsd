@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schema targetNamespace="http://www.ripn.net/epp/ripn-registrar-1.0"
-xmlns:registrar="http://www.ripn.net/epp/ripn-registrar-1.0"
-xmlns:epp="http://www.ripn.net/epp/ripn-epp-1.0"
-xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0"
-xmlns:host="http://www.ripn.net/epp/ripn-host-1.0"
-xmlns:contact="http://www.ripn.net/epp/ripn-contact-1.0"
+<schema targetNamespace="$registrar_ns"
+xmlns:registrar="$registrar_ns"
+xmlns:epp="$epp_ns"
+xmlns:eppcom="$eppcom_ns"
+xmlns:host="$host_ns"
+xmlns:contact="$contact_ns"
 xmlns="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
   <!--
     Import common element types.
   -->
-  <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0" schemaLocation="ripn-eppcom-1.0.xsd"/>
-  <import namespace="http://www.ripn.net/epp/ripn-contact-1.0" schemaLocation="ripn-contact-1.0.xsd"/>
-  <import namespace="http://www.ripn.net/epp/ripn-host-1.0" schemaLocation="ripn-host-1.0.xsd"/>
+  <import namespace="$eppcom_ns" schemaLocation="ripn-eppcom-1.0.xsd"/>
+  <import namespace="$contact_ns" schemaLocation="ripn-contact-1.0.xsd"/>
+  <import namespace="$host_ns" schemaLocation="ripn-host-1.0.xsd"/>
   <annotation>
     <documentation>
       Extensible Provisioning Protocol v1.0

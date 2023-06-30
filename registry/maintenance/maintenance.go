@@ -36,6 +36,7 @@ func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *
     if err != nil {
         return err
     }
+    defer dbconn2.Close()
     // for each reagistrar and zone count credit from advance invoices.
     // if credit is lower than limit and last poll message for this
     // registrar and zone is older than last advance invoice,
