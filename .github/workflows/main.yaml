@@ -29,3 +29,11 @@ jobs:
       - name: Build Whois
         working-directory: ./whois
         run: go build -v ./...
+
+      - name: Install logger dependencies
+        working-directory: ./logger
+        run: go get .
+
+      - name: Build Logger
+        working-directory: ./logger
+        run: go build -v ./...

@@ -51,6 +51,18 @@ services:
     links:
        - regdb
 
+  # logger service
+  #reglogger:
+  #  restart: always
+  #  container_name: reglogger
+  #  build:
+  #      context: ./logger
+  #  ports:
+  #    - 51055:51055
+  #  links:
+  #     - regdb
+
+
 volumes:
   registry_db:
     driver: local
