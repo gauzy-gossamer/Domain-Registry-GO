@@ -26,7 +26,7 @@ def test_get_registrars(temp_db):
     registrars = response.json()
 
 def test_create_registrar(temp_db):
-    request_data = {"handle":"TT1-REG"}
+    request_data = {"handle":"TT1-REG", "system":False}
     with TestClient(app) as client:
         response = client.post("/registrars",  json=request_data)
         assert response.status_code == 200
@@ -43,7 +43,7 @@ def test_create_registrar(temp_db):
         assert created_reg["id"] == resp_reg['id']
 
 def test_create_registrar_acl(temp_db):
-    request_data = {"handle":"TEST-REG","system":False}
+    request_data = {"handle":"TEST33-REG","system":False}
     with TestClient(app) as client:
         response = client.post("/registrars",  json=request_data)
         assert response.status_code == 200

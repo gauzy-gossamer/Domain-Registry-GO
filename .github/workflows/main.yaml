@@ -6,8 +6,40 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: dbpassword
+          POSTGRES_DB: registry
+          POSTGRES_USER: registry
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v3
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client
+      - name: Add hosts to /etc/hosts
+        run: sudo echo "127.0.0.1 regdb" | sudo tee -a /etc/hosts
+      - name: Prepare db
+        run: |
+          ./build_db_schema.sh --with-test > sql/init.sql
+          cat sql/init.sql | PGPASSWORD="dbpassword" psql -h regdb -p 5432 -U registry registry
+
+      - name: Set up python
+        uses: actions/setup-python@v2
+
+      - uses: syphar/restore-virtualenv@v1
+        id: cache-virtualenv
+
+      - name: Test admin
+        working-directory: ./admin
+        run: |
+          pip install -r requirements.txt
+          cp .env.example .env
+          py.test
 
       - name: Set up Go
         uses: actions/setup-go@v4
