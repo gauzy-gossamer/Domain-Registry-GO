@@ -25,7 +25,7 @@ import (
 var serv server.Server
 
 func process_command(w http.ResponseWriter, req *http.Request, serv *server.Server, XML string) string {
-    cmd, errv := serv.Xml_parser.ParseMessage(XML)
+    cmd, errv := serv.XmlParser.ParseMessage(XML)
 
     /* generate server transaction id before main procedure */
     SvTRID := server.GenerateTRID(10)
@@ -123,7 +123,6 @@ func main() {
         log.Fatal(err)
     }   
     serv.XmlParser.ReadSchema(serv.RGconf.SchemaPath)
-    var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {
         log.Fatal(err)
