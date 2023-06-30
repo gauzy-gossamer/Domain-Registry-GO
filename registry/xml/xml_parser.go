@@ -6,10 +6,11 @@ import (
     "strings"
     "errors"
     "bufio"
-    "github.com/kpango/glg"
+    "encoding/json"
 
     . "registry/epp/eppcom"
 
+    "github.com/kpango/glg"
     "github.com/lestrrat-go/libxml2"
     "github.com/lestrrat-go/libxml2/types"
     "github.com/lestrrat-go/libxml2/clib"
@@ -17,7 +18,7 @@ import (
     "github.com/lestrrat-go/libxml2/xpath"
 )
 
-const (
+var (
     EPP_NS = "http://www.ripn.net/epp/ripn-epp-1.0"
     DOMAIN_NS = "http://www.ripn.net/epp/ripn-domain-1.0"
     CONTACT_NS = "http://www.ripn.net/epp/ripn-contact-1.0"
@@ -43,6 +44,43 @@ type CommandError struct {
 
 func (e *CommandError) Error() string {
     return fmt.Sprintf("command error: %d; %s", e.RetCode, e.Msg)
+}
+
+/* set namespaces from config */
+func (s *XMLParser) SetNamespaces(schema_ns string) error {
+    if schema_ns == "" {
+        return nil
+    }
+    type Namespaces struct {
+        Epp string        `json:"epp"`
+        EppCom string     `json:"eppcom"`
+        Host string       `json:"host"`
+        Domain string     `json:"domain"`
+        Contact string    `json:"contact"`
+        Registrar string  `json:"registrar"`
+    }
+    ns := Namespaces{}
+
+    err := json.Unmarshal([]byte(schema_ns), &ns)
+    if err != nil {
+        return err
+    }
+    EPP_NS = ns.Epp
+    DOMAIN_NS = ns.Domain
+    HOST_NS = ns.Host
+    CONTACT_NS = ns.Contact
+    REGISTRAR_NS = ns.Registrar
+
+    schemaLoc = ns.Epp + " ripn-epp-1.0.xsd"
+
+    namespaces = map[string]string{"epp":EPP_NS,
+        "domain": DOMAIN_NS,
+        "contact": CONTACT_NS,
+        "host": HOST_NS,
+        "registrar": REGISTRAR_NS,
+    }
+
+    return nil
 }
 
 func (s *XMLParser) ReadSchema(schema_path string) {

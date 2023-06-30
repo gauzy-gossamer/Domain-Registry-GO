@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-     <schema targetNamespace="http://www.ripn.net/epp/ripn-epp-1.0"
-             xmlns:epp="http://www.ripn.net/epp/ripn-epp-1.0"
-             xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0"
+     <schema targetNamespace="$epp_ns"
+             xmlns:epp="$epp_ns"
+             xmlns:eppcom="$eppcom_ns"
              xmlns="http://www.w3.org/2001/XMLSchema"
              elementFormDefault="qualified">
 
      <!--
      Import common element types.
      -->
-       <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0"
+       <import namespace="$eppcom_ns"
                schemaLocation="ripn-eppcom-1.0.xsd"/>
 
        <annotation>

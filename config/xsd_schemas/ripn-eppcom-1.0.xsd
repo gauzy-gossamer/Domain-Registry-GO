@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schema targetNamespace="http://www.ripn.net/epp/ripn-eppcom-1.0" xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0" xmlns="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<schema targetNamespace="$eppcom_ns" xmlns:eppcom="$eppcom_ns" xmlns="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
   <annotation>
     <documentation>
       Extensible Provisioning Protocol v1.0

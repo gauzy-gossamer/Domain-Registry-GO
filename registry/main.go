@@ -52,8 +52,11 @@ func main() {
         serv.RGconf.HTTPConf.Port = *port
     }
 
+    err := serv.XmlParser.SetNamespaces(serv.RGconf.SchemaNs)
+    if err != nil {
+        log.Fatal(err)
+    }   
     serv.XmlParser.ReadSchema(serv.RGconf.SchemaPath)
-    var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {
         log.Fatal(err)

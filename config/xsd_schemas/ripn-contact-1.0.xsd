@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schema xmlns:contact="http://www.ripn.net/epp/ripn-contact-1.0"
-xmlns:epp="http://www.ripn.net/epp/ripn-epp-1.0"
-xmlns:eppcom="http://www.ripn.net/epp/ripn-eppcom-1.0"
-xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.ripn.net/epp/ripn-contact-1.0" elementFormDefault="qualified">
+<schema xmlns:contact="$contact_ns"
+xmlns:epp="$epp_ns"
+xmlns:eppcom="$eppcom_ns"
+xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="$contact_ns" elementFormDefault="qualified">
   <!--
     Import common element types.
   -->
-  <import namespace="http://www.ripn.net/epp/ripn-eppcom-1.0" schemaLocation="ripn-eppcom-1.0.xsd"/>
-  <import namespace="http://www.ripn.net/epp/ripn-epp-1.0" schemaLocation="ripn-epp-1.0.xsd"/>
+  <import namespace="$eppcom_ns" schemaLocation="ripn-eppcom-1.0.xsd"/>
+  <import namespace="$epp_ns" schemaLocation="ripn-epp-1.0.xsd"/>
   <annotation>
     <documentation>
       Extensible Provisioning Protocol v1.0
