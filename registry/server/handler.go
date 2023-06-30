@@ -3,6 +3,7 @@ package server
 import (
     "time"
     "fmt"
+    "net"
     "net/http"
     "strconv"
     "context"
@@ -29,7 +30,11 @@ func GetUserIPAddr(serv *Server, req *http.Request) string {
     if serv.RGconf.HTTPConf.UseProxy {
         return req.Header.Get("X-Forwarded-For")
     } else {
-        return req.RemoteAddr
+        host, _, err := net.SplitHostPort(req.RemoteAddr)
+        if err != nil {
+            return ""
+        }
+        return host
     }   
 }
 
@@ -37,9 +42,11 @@ func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, 
     logger := epp.GetLogger()
     cmd, errv := serv.XmlParser.ParseMessage(XML)
     reqctx := epp.GetReqContext(ctx)
+    var logid uint64
+    epp_res := &EPPResult{}
 
     if errv != nil {
-        epp_res := EPPResult{}
+        cmd = &xml.XMLCommand{}
         if cmd_err, ok := errv.(*xml.CommandError); ok {
             epp_res.RetCode = cmd_err.RetCode
             if cmd_err.Msg != "" {
@@ -49,14 +56,14 @@ func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, 
             epp_res.RetCode = 2500
             epp_res.Errors = []string{fmt.Sprint(errv)}
         }
+        logid = serv.Logger.StartRequest(reqctx.IPAddr, 0, cmd.Sessionid, 1)
         dbconn, err := AcquireConn(serv.Pool, logger)
         if err != nil {
             logger.Error(err)
         } else {
             defer dbconn.Close()
-            epp.ResolveErrorMsg(dbconn, &epp_res, LANG_EN)
+            epp.ResolveErrorMsg(dbconn, epp_res, LANG_EN)
         }
-        return xml.GenerateResponse(&epp_res, "", "")
     } else {
         if cmd.CmdType == EPP_HELLO {
             return xml.GenerateGreeting()
@@ -78,7 +85,9 @@ func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, 
             }
         }
 
-        epp_res := epp.ExecuteEPPCommand(ctx, cmd)
+        logid = serv.Logger.StartRequest(reqctx.IPAddr, uint32(cmd.CmdType), cmd.Sessionid, 1)
+
+        epp_res = epp.ExecuteEPPCommand(ctx, cmd)
 
         if epp_res.CmdType == EPP_LOGIN {
             if login_obj, ok := epp_res.Content.(*LoginResult); ok {
@@ -87,9 +96,12 @@ func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, 
                 http.SetCookie(w, &cookie)
             }
         }
-
-        return xml.GenerateResponse(epp_res, cmd.ClTRID, reqctx.SvTRID)
     }
+    if logid != 0 {
+        serv.Logger.EndRequest(logid, uint32(epp_res.RetCode))
+    }
+
+    return xml.GenerateResponse(epp_res, cmd.ClTRID, reqctx.SvTRID)
 }
 
 func HandleRequest(serv *Server, epp EPPContext, w http.ResponseWriter, req *http.Request, XML string) string {

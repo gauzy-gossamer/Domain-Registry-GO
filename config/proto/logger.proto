@@ -1,0 +1,46 @@
+/*
+gRPC declaration
+
+compile python mapping with:
+ pip3 install grpcio-tools
+ python3 -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. registry.proto
+
+compile go mapping with:
+ apt install protobuf-compiler
+ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+ protoc --go-grpc_out=./ --go_out=./ filename
+*/
+
+syntax = "proto3";
+
+option go_package = "./dir";
+
+service RegLogger {
+    rpc StartRequest(LogRequest) returns (LogID) {}
+    rpc EndRequest(EndReq) returns (LogStatus) {}
+}
+
+message LogRequest {
+    uint32 ServiceID = 1;
+    uint32 RequestType = 2;
+    int64 SessionID = 3;
+    uint64 UserID = 4;
+    bool IsMonitoring = 5; 
+    string SourceIP = 6;
+    string Content = 7;
+}
+
+message EndReq {
+    uint64 LogID = 1;
+    uint32 ResponseCode = 2;
+    string Content = 3;
+}
+
+message LogID {
+    uint64 LogID = 1;
+    int32 return_code = 2;
+}
+
+message LogStatus {
+    int32 return_code = 1;
+}

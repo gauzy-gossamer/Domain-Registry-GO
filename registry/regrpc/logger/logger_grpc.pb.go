@@ -16,7 +16,7 @@
 // - protoc             v3.21.12
 // source: logger.proto
 
-package logrpc
+package logger
 
 import (
 	context "context"

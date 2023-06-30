@@ -11,14 +11,14 @@ import (
 )
 
 func TestGetUserIPAddr(t *testing.T) {
-    test_ipaddr := "10.10.10.10"
+    test_ipaddr := "10.10.10.10:80"
     serv := epptests.PrepareServer("../server.conf")
     req := httptest.NewRequest("GET", "http://localhost", nil)
 
     req.RemoteAddr = test_ipaddr
 
     ipaddr := server.GetUserIPAddr(serv, req)
-    if ipaddr != test_ipaddr {
+    if ipaddr != "10.10.10.10" {
         t.Error(ipaddr)
     }
 

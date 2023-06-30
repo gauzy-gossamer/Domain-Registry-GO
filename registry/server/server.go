@@ -6,11 +6,17 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
+type LoggerType interface {
+    StartRequest(string, uint32, uint64, uint64) uint64
+    EndRequest(uint64, uint32) 
+}
+
 type Server struct {
     RGconf RegConfig
     XmlParser xml.XMLParser
     Sessions EPPSessions
     Pool *pgxpool.Pool
+    Logger LoggerType
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

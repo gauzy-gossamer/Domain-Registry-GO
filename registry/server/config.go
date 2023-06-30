@@ -26,9 +26,15 @@ type HTTPConfig struct {
     UseProxy bool
 }
 
+type LoggerConf struct {
+    GrpcPort int
+    GrpcHost string
+}
+
 type RegConfig struct {
     DBconf DBConfig
     HTTPConf HTTPConfig
+    Logger LoggerConf
     MaxRegistrarSessions uint
     MaxQueriesPerMinute uint
     SessionTimeout uint
@@ -169,6 +175,11 @@ func (r *RegConfig) LoadConfig(config_path string)  {
     })
 
     parseSection(cfg, "grpc", r, []ConfigVal {
+        {"GrpcPort", "port", 0, true},
+        {"GrpcHost", "host", "", true},
+    })
+
+    parseSection(cfg, "logger", &r.Logger, []ConfigVal {
         {"GrpcPort", "port", 0, true},
         {"GrpcHost", "host", "", true},
     })

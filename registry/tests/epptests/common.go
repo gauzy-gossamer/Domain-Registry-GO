@@ -9,8 +9,20 @@ import (
     "registry/xml"
 )
 
+type Logger struct {
+}
+
+func (l Logger) StartRequest(SourceIP string, RequestType uint32, SessionID uint64, UserID uint64) uint64 {
+    return 0
+}
+
+func (l Logger) EndRequest(LogID uint64, ResponseCode uint32) {
+
+}
+
 func PrepareServer(config string) *server.Server {
     serv := server.Server{}
+    serv.Logger = Logger{}
     serv.RGconf.LoadConfig(config)
     var err error
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)

@@ -53,7 +53,7 @@ func testRegistrarZoneAccess(db *server.DBConn, regid uint, zoneid int) (bool, e
 
     var invoiceid int
     err := row.Scan(&invoiceid)
-    return err != nil, err
+    return err == nil, err
 }
 
 func zoneSupported(db *server.DBConn, domain string) bool {

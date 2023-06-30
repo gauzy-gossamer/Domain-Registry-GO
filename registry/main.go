@@ -13,7 +13,8 @@ import (
     "registry/epp"
     . "registry/epp/eppcom"
     "registry/xml"
-    "registry/regrpc"
+    regrpc "registry/regrpc/cmd"
+    "registry/regrpc/logger"
     "registry/maintenance"
 )
 
@@ -55,7 +56,7 @@ func main() {
     err := serv.XmlParser.SetNamespaces(serv.RGconf.SchemaNs)
     if err != nil {
         log.Fatal(err)
-    }   
+    }
     serv.XmlParser.ReadSchema(serv.RGconf.SchemaPath)
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {
@@ -70,6 +71,8 @@ func main() {
     serv.Sessions.SessionTimeoutSec = serv.RGconf.SessionTimeout
     serv.Sessions.InitSessions(dbconn)
     dbconn.Close()
+
+    serv.Logger = logger.NewLoggerClient(serv.RGconf.Logger.GrpcHost, serv.RGconf.Logger.GrpcPort)
 
     go regrpc.StartgRPCServer(&serv)
 
