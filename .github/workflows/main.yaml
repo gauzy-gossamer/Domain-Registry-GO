@@ -53,7 +53,10 @@ jobs:
 
       - name: Test Registry
         working-directory: ./registry
-        run: cp server.conf.example server.conf && go test ./...
+        run: |
+          PWD=$(pwd)
+          cat server.conf.example | sed "s|/usr/src/registry/|$PWD|" > server.conf
+          go test ./...
 
       - name: Build Registry
         working-directory: ./registry
