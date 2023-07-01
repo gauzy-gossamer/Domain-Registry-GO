@@ -12,7 +12,7 @@ import (
 )
 
 type loggerServer struct {
-    logrpc.UnimplementedRegistryServer
+    logrpc.UnimplementedRegLoggerServer
     mainServer *server.Server
 }
 
@@ -40,13 +40,13 @@ func (r *loggerServer) StartRequest(ctx context.Context, logreq *logrpc.LogReque
     return &ret_msg, nil
 }
 
-func (r *loggerServer) EndRequest(ctx context.Context, endreq *logrpc.EndReq) (*logrpc.Status, error) {
+func (r *loggerServer) EndRequest(ctx context.Context, endreq *logrpc.EndReq) (*logrpc.LogStatus, error) {
     r_ctx := logrpc.RequestContext{Logger:logging.NewLogger("")}
     r_ctx.Logger.Trace("grpc EndRequest")
 
-    ret_msg := logrpc.Status{}
+    ret_msg := logrpc.LogStatus{}
 
-    err := r.mainServer.Storage.(logrpc.StorageModule).EndRequest(&r_ctx, endreq.LogID, endreq.RequestCode)
+    err := r.mainServer.Storage.(logrpc.StorageModule).EndRequest(&r_ctx, endreq.LogID, endreq.ResponseCode)
     if err != nil {
         r_ctx.Logger.Error(err)
         return nil, err
@@ -63,7 +63,7 @@ func StartgRPCServer(serv *server.Server) {
     }
     var opts []grpc.ServerOption
     grpcServer := grpc.NewServer(opts...)
-    logrpc.RegisterRegistryServer(grpcServer, newServer(serv))
+    logrpc.RegisterRegLoggerServer(grpcServer, newServer(serv))
     glg.Info("running gRPC at ", server_addr)
     err = grpcServer.Serve(lis)
     if err != nil {

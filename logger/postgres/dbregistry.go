@@ -16,7 +16,7 @@ func (st *PostgresStorage) StartRequest(ctx *logrpc.RequestContext, logreq *logr
 
     _, err = dbconn.Exec("INSERT INTO request(time_begin, source_ip, service_id, request_type_id, session_id, user_id, is_monitoring) " +
                          "VALUES(now(), $1::inet,  $2::integer, $3::integer, $4::bigint, $5::integer, $6::boolean); ",
-                         logreq.SourceIP, SERVICE_ID, logreq.RequestType, logreq.SessionID, logreq.UserID, logreq.IsMonitoring)
+                         logreq.SourceIP, logreq.ServiceID, logreq.RequestType, logreq.SessionID, logreq.UserID, logreq.IsMonitoring)
     if err != nil {
         return 0, err
     }

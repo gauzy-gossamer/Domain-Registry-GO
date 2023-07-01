@@ -46,17 +46,14 @@ func getRegistrarZones(db *server.DBConn, regid uint) ([]string, error) {
     return zones, nil
 }
 
-func testRegistrarZoneAccess(db *server.DBConn, regid uint, zoneid int) bool {
+func testRegistrarZoneAccess(db *server.DBConn, regid uint, zoneid int) (bool, error) {
     row := db.QueryRow("SELECT id FROM registrarinvoice " +
                        "WHERE registrarid = $1::integer and zone = $2::integer and " +
                        "todate is null and fromdate <= now()" , regid, zoneid)
 
     var invoiceid int
     err := row.Scan(&invoiceid)
-    if err != nil {
-        return false
-    }
-    return true
+    return err == nil, err
 }
 
 func zoneSupported(db *server.DBConn, domain string) bool {

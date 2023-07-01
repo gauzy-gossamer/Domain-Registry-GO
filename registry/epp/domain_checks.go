@@ -22,12 +22,8 @@ func checkIDNAValidity(domain string) bool {
     if !strings.HasPrefix(domain, "xn--") {
         return true
     }
-    val, err := ConvertIDNA(domain)
-    glg.Error(val)
-    if err != nil {
-        return false
-    }
-    return true
+    _, err := ConvertIDNA(domain)
+    return err == nil
 }
 
 func checkDoubleHyphens(domain string) bool {

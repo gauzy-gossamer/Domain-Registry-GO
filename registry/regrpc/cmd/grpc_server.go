@@ -10,7 +10,6 @@ import (
     "registry/epp"
     . "registry/epp/eppcom"
     "google.golang.org/grpc"
-    "github.com/kpango/glg"
 )
 
 type registryServer struct {
@@ -38,24 +37,27 @@ func getSystemRegistrar(dbconn *server.DBConn) (*xml.EPPLogin, error) {
 }
 
 func (r *registryServer) LoginSystem(ctx context.Context, empty *Empty) (*Session, error) {
-    glg.Trace("grpc LoginSystem")
+    logger := server.NewLogger("gRPCLogin")
+    logger.Trace("LoginSystem")
 
     ret_msg := Session{}
-    dbconn, err := server.AcquireConn(r.mainServer.Pool, server.NewLogger("grpc"))
+    dbconn, err := server.AcquireConn(r.mainServer.Pool, logger)
     if err != nil {
-        glg.Error(err)
+        logger.Error(err)
         return nil, err
     }
     defer dbconn.Close()
     login_cmd, err := getSystemRegistrar(dbconn)
-    xml_cmd := xml.XMLCommand{SvTRID:"gRPCLogin", CmdType:EPP_LOGIN}
+    xml_cmd := xml.XMLCommand{CmdType:EPP_LOGIN}
     xml_cmd.Content = login_cmd
 
     if err != nil {
-        glg.Error(err)
+        logger.Error(err)
         return nil, err
     }
-    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
+    eppc := epp.NewEPPContext(r.mainServer)
+    eppc.SetLogger(logger)
+    epp_result := eppc.ExecuteEPPCommand(context.Background(), &xml_cmd)
     if login_obj, ok := epp_result.Content.(*LoginResult); ok {
         ret_msg.Sessionid = strconv.FormatUint(login_obj.Sessionid,10)
     }
@@ -64,12 +66,15 @@ func (r *registryServer) LoginSystem(ctx context.Context, empty *Empty) (*Sessio
 }
 
 func (r *registryServer) LogoutSystem(ctx context.Context, session *Session) (*Status, error) {
-    glg.Trace("grpc LogoutSystem")
+    logger := server.NewLogger("gRPCLogout")
+    logger.Trace("LogoutSystem")
 
-    xml_cmd := xml.XMLCommand{SvTRID:"gRPCLogout", CmdType:EPP_LOGOUT}
+    xml_cmd := xml.XMLCommand{CmdType:EPP_LOGOUT}
     xml_cmd.Sessionid, _ = strconv.ParseUint(session.Sessionid, 10, 64)
 
-    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
+    eppc := epp.NewEPPContext(r.mainServer)
+    eppc.SetLogger(logger)
+    epp_result := eppc.ExecuteEPPCommand(context.Background(), &xml_cmd)
 
     ret_msg := Status{ReturnCode:0}
 
@@ -81,10 +86,11 @@ func (r *registryServer) LogoutSystem(ctx context.Context, session *Session) (*S
 }
 
 func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_GetExpiredDomainsServer) error {
-    glg.Trace("grpc GetExpiredDomains")
-    dbconn, err := server.AcquireConn(r.mainServer.Pool, server.NewLogger("grpc"))
+    logger := server.NewLogger("grpc")
+    logger.Trace("GetExpiredDomains")
+    dbconn, err := server.AcquireConn(r.mainServer.Pool, logger)
     if err != nil {
-        glg.Error(err)
+        logger.Error(err)
         return err
     }
     defer dbconn.Close()
@@ -101,7 +107,7 @@ func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_Get
                      "WHERE o.type = 3"
     rows, err := dbconn.Query(expired_query)
     if err != nil {
-        glg.Error(err)
+        logger.Error(err)
         return err
     }
     defer rows.Close()
@@ -109,12 +115,12 @@ func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_Get
         var domain string
         err := rows.Scan(&domain)
         if err != nil {
-            glg.Error(err)
+            logger.Error(err)
             return err
         }
         domain_ret := Domain{Name:domain}
         if err := stream.Send(&domain_ret); err != nil {
-            glg.Error(err)
+            logger.Error(err)
             return err
         }
     }
@@ -123,13 +129,16 @@ func (r *registryServer) GetExpiredDomains(session *Session, stream Registry_Get
 }
 
 func (r *registryServer) DeleteDomain(ctx context.Context, domain *Domain) (*Status, error) {
-    glg.Trace("grpc DeleteDomain", domain.Name)
+    logger := server.NewLogger("grpc")
+    logger.Trace("DeleteDomain", domain.Name)
 
-    xml_cmd := xml.XMLCommand{SvTRID:"gRPCDelete", CmdType:EPP_DELETE_DOMAIN}
+    xml_cmd := xml.XMLCommand{CmdType:EPP_DELETE_DOMAIN}
     xml_cmd.Sessionid, _ = strconv.ParseUint(domain.Sessionid, 10, 64)
     xml_cmd.Content = &xml.DeleteObject{Name:domain.Name}
 
-    epp_result := epp.ExecuteEPPCommand(context.Background(), r.mainServer, &xml_cmd)
+    eppc := epp.NewEPPContext(r.mainServer)
+    eppc.SetLogger(logger)
+    epp_result := eppc.ExecuteEPPCommand(context.Background(), &xml_cmd)
 
     ret_msg := Status{ReturnCode:0}
 
@@ -141,18 +150,20 @@ func (r *registryServer) DeleteDomain(ctx context.Context, domain *Domain) (*Sta
 }
 
 func StartgRPCServer(serv *server.Server) {
+    logger := server.NewLogger("")
     port := serv.RGconf.GrpcPort
     server_addr := fmt.Sprintf("%v:%d", serv.RGconf.GrpcHost, port)
     lis, err := net.Listen("tcp", server_addr)
     if err != nil {
-        glg.Fatal("failed to start gRPC:", err)
+        logger.Fatal("failed to start gRPC:", err)
     }
+
     var opts []grpc.ServerOption
     grpcServer := grpc.NewServer(opts...)
     RegisterRegistryServer(grpcServer, newServer(serv))
-    glg.Info("running gRPC at ", server_addr)
+    logger.Info("running gRPC at ", server_addr)
     err = grpcServer.Serve(lis)
     if err != nil {
-        glg.Fatal(err)
+        logger.Fatal(err)
     }
 }

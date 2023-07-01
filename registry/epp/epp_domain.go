@@ -106,7 +106,11 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
     }
 
     if !ctx.session.System {
-        if !testRegistrarZoneAccess(ctx.dbconn, ctx.session.Regid, zone.id) {
+        if ok, err := testRegistrarZoneAccess(ctx.dbconn, ctx.session.Regid, zone.id); !ok || err != nil {
+            if err != nil {
+                ctx.logger.Error(err)
+                return &EPPResult{RetCode:EPP_FAILED}
+            }
             return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
         }
     }
