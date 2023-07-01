@@ -23,13 +23,14 @@ jobs:
           sudo apt-get install --yes --no-install-recommends postgresql-client
       - name: Add hosts to /etc/hosts
         run: sudo echo "127.0.0.1 regdb" | sudo tee -a /etc/hosts
-      - name: Prepare db
-        run: |
-          ./build_db_schema.sh --with-test > sql/init.sql
-          cat sql/init.sql | PGPASSWORD="dbpassword" psql -h regdb -p 5432 -U registry registry
 
       - name: Set up python
         uses: actions/setup-python@v2
+
+      - name: Prepare db
+        run: |
+          ./prepare_docker.sh
+          cat sql/init.sql sql/test2.sql | PGPASSWORD="dbpassword" psql -h regdb -p 5432 -U registry registry
 
       - uses: syphar/restore-virtualenv@v1
         id: cache-virtualenv
@@ -49,6 +50,10 @@ jobs:
       - name: Install dependencies
         working-directory: ./registry
         run: go get .
+
+      - name: Test Registry
+        working-directory: ./registry
+        run: cp server.conf.example server.conf && go test ./...
 
       - name: Build Registry
         working-directory: ./registry
