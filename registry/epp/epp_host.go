@@ -13,6 +13,36 @@ func hostRegistrarHandle(handle string, regid uint) string {
     return fmt.Sprintf("%s:%d", handle, regid)
 }
 
+func epp_host_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
+    ctx.logger.Info("Host check", v.Names)
+
+    var check_results []CheckResult
+
+    for _, host := range v.Names {
+        host_name := normalizeDomainUpper(host)
+        host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
+        if !checkDomainValidity(host_name) {
+            check_results = append(check_results, CheckResult{Name:host, Result:CD_NOT_APPLICABLE})
+            continue
+        }
+
+        _, err := dbreg.GetHostObject(ctx.dbconn, host_handle, ctx.session.Regid)
+        if err == nil {
+            check_results = append(check_results, CheckResult{Name:host, Result:CD_REGISTERED})
+            continue
+        } else if err != pgx.ErrNoRows {
+            ctx.logger.Error(err)
+            continue
+        }
+
+        check_results = append(check_results, CheckResult{Name:host, Result:CD_AVAILABLE})
+    }   
+
+    var res = EPPResult{RetCode:EPP_OK}
+    res.Content = check_results
+    return &res
+}
+
 func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*InfoHostData, *ObjectStates, *EPPResult) {
     info_db := dbreg.NewInfoHostDB()
     host_data, err := info_db.SetLock(for_update).Set_fqdn(host_handle).Exec(ctx.dbconn)

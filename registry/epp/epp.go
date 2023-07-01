@@ -124,6 +124,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
             if v, ok := cmd.Content.(*xml.DeleteObject) ; ok {
                 epp_result = epp_domain_delete_impl(ctx, v)
             }
+        case EPP_CHECK_CONTACT:
+            if v, ok := cmd.Content.(*xml.CheckObject) ; ok {
+                epp_result = epp_contact_check_impl(ctx, v)
+            }
         case EPP_INFO_CONTACT:
             if v, ok := cmd.Content.(*xml.InfoContact) ; ok {
                 epp_result = epp_contact_info_impl(ctx, v)
@@ -139,6 +143,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
         case EPP_DELETE_CONTACT:
             if v, ok := cmd.Content.(*xml.DeleteObject) ; ok {
                 epp_result = epp_contact_delete_impl(ctx, v)
+            }
+        case EPP_CHECK_HOST:
+            if v, ok := cmd.Content.(*xml.CheckObject) ; ok {
+                epp_result = epp_host_check_impl(ctx, v)
             }
         case EPP_INFO_HOST:
             if v, ok := cmd.Content.(*xml.InfoHost) ; ok {

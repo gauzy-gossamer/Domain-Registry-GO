@@ -100,6 +100,11 @@ class RipnEpp():
 
         return self._client_send(cmd)
 
+    def check_contact(self, contact: list[str]):
+        cmd = ec.EppCheckContactCommand(extra_nsmap=self.extra_nsmap)
+        cmd.id = contact
+        return self._client_send(cmd)
+
     def _set_default(self, fields, field_name, def_value):
         if fields is not None and field_name in fields:
             if type(fields[field_name]) is type(def_value):

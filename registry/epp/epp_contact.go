@@ -8,6 +8,36 @@ import (
     "github.com/jackc/pgx/v5"
 )
 
+func epp_contact_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
+    ctx.logger.Info("Contact check", v.Names)
+
+    var check_results []CheckResult
+
+    for _, contact := range v.Names {
+        contact_handle := strings.ToLower(contact)
+
+        if !checkContactHandleValidity(contact_handle) {
+            check_results = append(check_results, CheckResult{Name:contact, Result:CD_NOT_APPLICABLE})
+            continue
+        }
+
+        if ok, err := isContactAvailable(ctx.dbconn, contact_handle); !ok {
+            if err != nil {
+                ctx.logger.Error(err)
+                continue
+            }
+            check_results = append(check_results, CheckResult{Name:contact, Result:CD_REGISTERED})
+            continue
+        }
+
+        check_results = append(check_results, CheckResult{Name:contact, Result:CD_AVAILABLE})
+    }   
+
+    var res = EPPResult{RetCode:EPP_OK}
+    res.Content = check_results
+    return &res
+}
+
 func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool) (*InfoContactData, *ObjectStates, *EPPResult) {
     info_db := dbreg.NewInfoContactDB()
     contact_data, err := info_db.SetLock(for_update).SetName(contact_handle).Exec(ctx.dbconn)
@@ -67,6 +97,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
     if ok, err := isContactAvailable(ctx.dbconn, contact_handle); !ok {
         if err != nil {
             ctx.logger.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
         }
         return &EPPResult{RetCode:EPP_OBJECT_EXISTS}
     }

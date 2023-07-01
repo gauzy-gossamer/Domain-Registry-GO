@@ -25,16 +25,16 @@ func getCheckState(check_result *CheckResult) (string, string) {
     return avail, reason
 }
 
-func CheckDomainResponse(response *EPPResult) *ResDataS {
+func CheckDomainResponse(response *EPPResult, obj_ns string) *ResDataS {
     check_results, ok := response.Content.([]CheckResult)
     if !ok {
         glg.Error("conversion error")
         return nil
     }
 
-    domain_check := &DomainCheck{
-        XMLNSDom:DOMAIN_NS,
-        XMLNS:DOMAIN_NS,
+    obj_check := DomainCheck{
+        XMLNSDom:obj_ns,
+        XMLNS:obj_ns,
     }
 
     for _, res := range check_results {
@@ -42,10 +42,56 @@ func CheckDomainResponse(response *EPPResult) *ResDataS {
         cd_obj := CDObj{Reason:reason}
         cd_obj.V.Name = res.Name
         cd_obj.V.Avail = avail
-        domain_check.CD = append(domain_check.CD, cd_obj)
+        obj_check.CD = append(obj_check.CD, cd_obj)
     }
 
-    return &ResDataS{Obj:domain_check}
+    return &ResDataS{Obj:obj_check}
+}
+
+func CheckHostResponse(response *EPPResult, obj_ns string) *ResDataS {
+    check_results, ok := response.Content.([]CheckResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
+
+    obj_check := HostCheck{
+        XMLNSDom:obj_ns,
+        XMLNS:obj_ns,
+    }
+
+    for _, res := range check_results {
+        avail, reason := getCheckState(&res)
+        cd_obj := CDObj{Reason:reason}
+        cd_obj.V.Name = res.Name
+        cd_obj.V.Avail = avail
+        obj_check.CD = append(obj_check.CD, cd_obj)
+    }
+
+    return &ResDataS{Obj:obj_check}
+}
+
+func CheckContactResponse(response *EPPResult, obj_ns string) *ResDataS {
+    check_results, ok := response.Content.([]CheckResult)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
+
+    obj_check := ContactCheck{
+        XMLNSDom:obj_ns,
+        XMLNS:obj_ns,
+    }
+
+    for _, res := range check_results {
+        avail, reason := getCheckState(&res)
+        cd_obj := CDIDObj{Reason:reason}
+        cd_obj.V.Name = res.Name
+        cd_obj.V.Avail = avail
+        obj_check.CD = append(obj_check.CD, cd_obj)
+    }
+
+    return &ResDataS{Obj:obj_check}
 }
 
 func DomainResponse(response *EPPResult) *ResDataS {
@@ -257,7 +303,11 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     } else {
         switch response.CmdType {
             case EPP_CHECK_DOMAIN:
-                resp.ResData = CheckDomainResponse(response)
+                resp.ResData = CheckDomainResponse(response, DOMAIN_NS)
+            case EPP_CHECK_HOST:
+                resp.ResData = CheckHostResponse(response, HOST_NS)
+            case EPP_CHECK_CONTACT:
+                resp.ResData = CheckContactResponse(response, CONTACT_NS)
 
             case EPP_INFO_DOMAIN:
                 resp.ResData = DomainResponse(response)

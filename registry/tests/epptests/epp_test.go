@@ -208,6 +208,47 @@ func TestEPPContact(t *testing.T) {
     logoutSession(t, serv, dbconn, sessionid)
 }
 
+func TestEPPCheckContact(t *testing.T) {
+    serv := prepareServer()
+
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+
+    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }   
+    eppc := epp.NewEPPContext(serv)
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
+    test_contact2 := "TEST-" + server.GenerateRandString(8)
+
+    tests := map[string]int{test_contact:CD_REGISTERED, test_contact2:CD_AVAILABLE, "?domain.":CD_NOT_APPLICABLE}
+    names := []string{}
+    for name := range tests {
+        names = append(names, name)
+    }
+
+    check_host := xml.CheckObject{Names:names}
+    cmd := xml.XMLCommand{CmdType:EPP_CHECK_CONTACT, Sessionid:sessionid}
+    cmd.Content = &check_host
+
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
+    if epp_res.RetCode != EPP_OK {
+        t.Error("should be ok")
+    }
+    testCheckResults(t, epp_res.Content, tests)
+
+    err = serv.Sessions.LogoutSession(dbconn, sessionid)
+    if err != nil {
+        t.Error("logout failed")
+    }   
+}
+
 func updateContactStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
     update_contact := xml.UpdateContact{Fields:ContactFields{ContactId:name}, AddStatus:add_states, RemStatus:rem_states}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
@@ -317,6 +358,66 @@ func TestEPPHost(t *testing.T) {
     if err != nil {
         t.Error("logout failed")
     }
+}
+
+func testCheckResults(t *testing.T, content interface{}, tests map[string]int) {
+    check_results, ok := content.([]CheckResult)
+    if !ok {
+        t.Error("conversion error")
+        return
+    }
+
+    for _, check_result := range check_results {
+        res, ok := tests[check_result.Name]
+        if !ok {
+            t.Error(check_result.Name, " not found")
+            continue
+        }
+        if res != check_result.Result {
+            t.Error("dont match ", res, check_result.Result)
+        }
+    }
+}
+
+func TestEPPCheckHost(t *testing.T) {
+    serv := prepareServer()
+
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+
+    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }   
+    test_host := generateRandomDomain(zone)
+
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    tests := map[string]int{"ns1."+test_host:CD_AVAILABLE, "a." + zone:CD_AVAILABLE, "a-domain.nonexistant":CD_AVAILABLE, "?domain." + zone:CD_NOT_APPLICABLE}
+
+    names := []string{}
+    for name := range tests {
+        names = append(names, name)
+    }
+
+    check_host := xml.CheckObject{Names:names}
+    cmd := xml.XMLCommand{CmdType:EPP_CHECK_HOST, Sessionid:sessionid}
+    cmd.Content = &check_host
+
+    eppc := epp.NewEPPContext(serv)
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
+    if epp_res.RetCode != EPP_OK {
+        t.Error("should be ok")
+    }
+    testCheckResults(t, epp_res.Content, tests)
+
+    err = serv.Sessions.LogoutSession(dbconn, sessionid)
+    if err != nil {
+        t.Error("logout failed")
+    } 
 }
 
 func updateHostStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {

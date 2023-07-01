@@ -132,12 +132,36 @@ type CDObj struct {
     Reason string `xml:"reason,omitempty"`
 }
 
+type CDIDObj struct {
+    V struct {
+        Name   string `xml:",chardata"`
+        Avail  string `xml:"avail,attr,omitempty"`
+    } `xml:"id"`
+    Reason string `xml:"reason,omitempty"`
+}
+
 type DomainCheck struct {
     XMLName  xml.Name `xml:"domain:chkData"`
     XMLNSDom string   `xml:"xmlns:domain,attr"`
     XMLNS    string   `xml:"xmlns,attr,omitempty"`
 
     CD []CDObj `xml:"cd"`
+}
+
+type HostCheck struct {
+    XMLName  xml.Name `xml:"host:chkData"`
+    XMLNSDom string   `xml:"xmlns:host,attr"`
+    XMLNS    string   `xml:"xmlns,attr,omitempty"`
+
+    CD []CDObj `xml:"cd"`
+}
+
+type ContactCheck struct {
+    XMLName  xml.Name `xml:"contact:chkData"`
+    XMLNSDom string   `xml:"xmlns:contact,attr"`
+    XMLNS    string   `xml:"xmlns,attr,omitempty"`
+
+    CD []CDIDObj `xml:"cd"`
 }
 
 type ResDataS struct {

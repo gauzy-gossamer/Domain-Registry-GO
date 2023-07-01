@@ -171,15 +171,34 @@ func parseCheck(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
     }
 
     var cmd XMLCommand
+    if err := ctx.SetContextNode(nodes[0]); err != nil {
+        return nil, err
+    }
     switch nodes[0].NodeName() {
         case "domain:check":
-            ctx.SetContextNode(nodes[0])
-
             var check_obj CheckObject
 
             check_obj.Names = getElementList(ctx, "domain:name")
 
             cmd.CmdType = EPP_CHECK_DOMAIN
+            cmd.Content = &check_obj
+
+            return &cmd, nil
+        case "host:check":
+            var check_obj CheckObject
+
+            check_obj.Names = getElementList(ctx, "host:name")
+
+            cmd.CmdType = EPP_CHECK_HOST
+            cmd.Content = &check_obj
+
+            return &cmd, nil
+        case "contact:check":
+            var check_obj CheckObject
+
+            check_obj.Names = getElementList(ctx, "contact:id")
+
+            cmd.CmdType = EPP_CHECK_CONTACT
             cmd.Content = &check_obj
 
             return &cmd, nil
@@ -197,10 +216,11 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
     }
 
     var cmd XMLCommand
+    if err := ctx.SetContextNode(nodes[0]); err != nil {
+        return nil, err
+    }
     switch nodes[0].NodeName() {
         case "domain:info":
-            ctx.SetContextNode(nodes[0])
-
             var info_domain InfoDomain
 
             name := xpath.String(ctx.Find("domain:name"))
@@ -214,8 +234,6 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "host:info":
-            ctx.SetContextNode(nodes[0])
-
             var info_host InfoHost
 
             info_host.Name = xpath.String(ctx.Find("host:name"))
@@ -225,8 +243,6 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "contact:info":
-            ctx.SetContextNode(nodes[0])
-
             var info_contact InfoContact
 
             info_contact.Name = xpath.String(ctx.Find("contact:id"))
