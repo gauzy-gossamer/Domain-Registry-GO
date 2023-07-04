@@ -23,18 +23,17 @@ type CheckObject struct {
     Names []string
 }
 
+type InfoObject struct {
+    Name string
+}
+
 type InfoDomain struct {
     Name string
     AuthInfo string
 }
 
-type InfoHost struct {
-    Name string
-}
-
 type InfoContact struct {
     Name string
-    Emails []string
 }
 
 type CreateDomain struct {

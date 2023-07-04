@@ -3,6 +3,7 @@ package epp
 import (
     "registry/xml"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/registrar"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
@@ -246,7 +247,7 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         }
     }
 
-    acquirer, err := dbreg.GetRegistrarByHandle(ctx.dbconn, v.AcID)
+    acquirer, err := registrar.GetRegistrarByHandle(ctx.dbconn, v.AcID)
     if err != nil {
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}

@@ -327,7 +327,7 @@ func TestEPPHost(t *testing.T) {
     test_host := "ns1." + generateRandomDomain(zone) 
     non_subordinate_host := "ns1." + generateRandomDomain("nonexistant.ru")
 
-    info_host := xml.InfoHost{Name:test_host}
+    info_host := xml.InfoObject{Name:test_host}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_HOST, Sessionid:sessionid}
     cmd.Content = &info_host
 

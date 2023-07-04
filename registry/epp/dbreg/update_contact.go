@@ -120,55 +120,55 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
         var fields []string
 
         if !up.intpostal.IsNull() {
-            params = append(params, packJson(up.intpostal.Get().([]string)))
+            params = append(params, PackJson(up.intpostal.Get().([]string)))
             fields = append(fields, "intpostal = $" + strconv.Itoa(len(params)) + "::text")
         }
 
         if !up.intaddress.IsNull() {
-            params = append(params, packJson(up.intaddress.Get().([]string)))
+            params = append(params, PackJson(up.intaddress.Get().([]string)))
             fields = append(fields, "intaddress = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
 
         if !up.locpostal.IsNull() {
-            params = append(params, packJson(up.locpostal.Get().([]string)))
+            params = append(params, PackJson(up.locpostal.Get().([]string)))
             fields = append(fields, "locpostal = $" + strconv.Itoa(len(params)) + "::text")
         }
 
         if !up.locaddress.IsNull() {
-            params = append(params, packJson(up.locaddress.Get().([]string)))
+            params = append(params, PackJson(up.locaddress.Get().([]string)))
             fields = append(fields, "locaddress = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
 
         if !up.legaladdress.IsNull() {
-            params = append(params, packJson(up.legaladdress.Get().([]string)))
+            params = append(params, PackJson(up.legaladdress.Get().([]string)))
             fields = append(fields, "legaladdress = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
 
         if !up.taxnumbers.IsNull() {
-            params = append(params, packJson(up.taxnumbers.Get().([]string)))
+            params = append(params, PackJson(up.taxnumbers.Get().([]string)))
             fields = append(fields, "vat = $" + strconv.Itoa(len(params)) + "::text")
         }
 
         if !up.passport.IsNull() {
-            params = append(params, packJson(up.passport.Get().([]string)))
+            params = append(params, PackJson(up.passport.Get().([]string)))
             fields = append(fields, "passport = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
 
         if !up.birthday.IsNull() {
-            params = append(params, packJson(up.birthday.Get().([]string)))
+            params = append(params, PackJson(up.birthday.Get().([]string)))
             fields = append(fields, "birthday = $" + strconv.Itoa(len(params)) + "::date")
         }
 
         if !up.emails.IsNull() {
-            params = append(params, packJson(up.emails.Get().([]string)))
+            params = append(params, PackJson(up.emails.Get().([]string)))
             fields = append(fields, "email = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
         if !up.voice.IsNull() {
-            params = append(params, packJson(up.voice.Get().([]string)))
+            params = append(params, PackJson(up.voice.Get().([]string)))
             fields = append(fields, "telephone = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
         if !up.fax.IsNull() {
-            params = append(params, packJson(up.fax.Get().([]string)))
+            params = append(params, PackJson(up.fax.Get().([]string)))
             fields = append(fields, "fax = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
         if !up.verified.IsNull() {

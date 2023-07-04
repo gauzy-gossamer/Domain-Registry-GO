@@ -98,13 +98,13 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
         data.TaxNumbers = taxnumbers.String
     }
 
-    data.LocAddress = unpackJson(locaddress)
-    data.IntAddress = unpackJson(intaddress)
-    data.LegalAddress = unpackJson(legaladdress)
+    data.LocAddress = UnpackJson(locaddress)
+    data.IntAddress = UnpackJson(intaddress)
+    data.LegalAddress = UnpackJson(legaladdress)
 
-    data.Emails = unpackJson(email)
-    data.Voice = unpackJson(telephone)
-    data.Fax = unpackJson(fax)
+    data.Emails = UnpackJson(email)
+    data.Voice = UnpackJson(telephone)
+    data.Fax = UnpackJson(fax)
 
     return &data, nil
 }

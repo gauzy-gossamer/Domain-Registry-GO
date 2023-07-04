@@ -149,7 +149,7 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
                 epp_result = epp_host_check_impl(ctx, v)
             }
         case EPP_INFO_HOST:
-            if v, ok := cmd.Content.(*xml.InfoHost) ; ok {
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
                 epp_result = epp_host_info_impl(ctx, v)
             }
         case EPP_CREATE_HOST:
@@ -169,6 +169,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
         case EPP_POLL_ACK:
             if v, ok := cmd.Content.(string) ; ok  {
                 epp_result = epp_poll_ack_impl(ctx, v)
+            }
+        case EPP_INFO_REGISTRAR:
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
+                epp_result = epp_registrar_info_impl(ctx, v)
             }
         default:
             epp_result = &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_UNKNOWN_ERR}

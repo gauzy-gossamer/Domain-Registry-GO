@@ -69,7 +69,7 @@ func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) e
             fields = append(fields, "registrant = $" + strconv.Itoa(len(params)) + "::bigint")
         }
         if !up.description.IsNull() {
-            params = append(params, packJson(up.description.Get().([]string)))
+            params = append(params, PackJson(up.description.Get().([]string)))
             fields = append(fields, "description = $" + strconv.Itoa(len(params)) + "::jsonb")
         }
         fields_str := strings.Join(fields, ", ")

@@ -58,7 +58,7 @@ func (q *CreateDomainDB) Exec(db *server.DBConn) (*CreateDomainResult, error) {
     params = append(params, q.zoneid)
     params = append(params, q.registrant)
     params = append(params, create_result.Exdate)
-    params = append(params, packJson(q.description))
+    params = append(params, PackJson(q.description))
 
     _, err = db.Exec(cols + vals, params...)
     if err != nil {

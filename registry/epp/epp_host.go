@@ -76,7 +76,7 @@ func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*Inf
     return host_data, object_states, nil
 }
 
-func epp_host_info_impl(ctx *EPPContext, v *xml.InfoHost) (*EPPResult) {
+func epp_host_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     ctx.logger.Info("Info host", v.Name)
     host_name := normalizeDomainUpper(v.Name)
     host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)

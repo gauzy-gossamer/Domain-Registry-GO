@@ -234,7 +234,7 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "host:info":
-            var info_host InfoHost
+            var info_host InfoObject
 
             info_host.Name = xpath.String(ctx.Find("host:name"))
 
@@ -249,6 +249,15 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             cmd.CmdType = EPP_INFO_CONTACT
             cmd.Content = &info_contact
+
+            return &cmd, nil
+        case "registrar:info":
+            var info_registrar InfoObject
+
+            info_registrar.Name = xpath.String(ctx.Find("registrar:id"))
+
+            cmd.CmdType = EPP_INFO_REGISTRAR
+            cmd.Content = &info_registrar
 
             return &cmd, nil
         default:

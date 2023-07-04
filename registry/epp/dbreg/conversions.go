@@ -5,12 +5,12 @@ import (
      "github.com/jackc/pgtype"
 )
 
-func packJson(vals []string) string {
+func PackJson(vals []string) string {
     bytes, _ := json.Marshal(vals)
     return string(bytes)
 }
 
-func unpackJson(val pgtype.Text) []string {
+func UnpackJson(val pgtype.Text) []string {
     var result []string
     if val.Status != pgtype.Null {
         _ = json.Unmarshal([]byte(val.String), &result)
