@@ -5,8 +5,8 @@ import (
     "github.com/jackc/pgtype"
 )
 
-func RenewDomain(db *server.DBConn, domainid uint64, exdate pgtype.Timestamp, new_exdate pgtype.Timestamp) error {
-    err := lockObjectById(db, domainid, "domain")
+func RenewDomain(db *server.DBConn, domainid uint64, regid uint, exdate pgtype.Timestamp, new_exdate pgtype.Timestamp) error {
+    err := LockObjectById(db, domainid, "domain")
     if err != nil {
         return err
     }
@@ -15,6 +15,11 @@ func RenewDomain(db *server.DBConn, domainid uint64, exdate pgtype.Timestamp, ne
                        new_exdate, domainid, exdate)
     var updated_id uint64
     err = row.Scan(&updated_id)
+    if err != nil {
+        return err
+    }
+
+    err = UpdateObject(db, domainid, regid)
 
     return err
 }

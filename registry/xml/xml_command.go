@@ -32,10 +32,6 @@ type InfoDomain struct {
     AuthInfo string
 }
 
-type InfoContact struct {
-    Name string
-}
-
 type CreateDomain struct {
     Name string
     Registrant string
@@ -74,6 +70,14 @@ type UpdateContact struct {
     Fields eppcom.ContactFields
     AddStatus []string
     RemStatus []string
+}
+
+type UpdateRegistrar struct {
+    Name string
+    AddAddrs []string
+    RemAddrs []string
+    WWW string
+    Whois string
 }
 
 type RenewDomain struct {

@@ -129,7 +129,7 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
                 epp_result = epp_contact_check_impl(ctx, v)
             }
         case EPP_INFO_CONTACT:
-            if v, ok := cmd.Content.(*xml.InfoContact) ; ok {
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
                 epp_result = epp_contact_info_impl(ctx, v)
             }
         case EPP_CREATE_CONTACT:
@@ -173,6 +173,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
         case EPP_INFO_REGISTRAR:
             if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
                 epp_result = epp_registrar_info_impl(ctx, v)
+            }
+        case EPP_UPDATE_REGISTRAR:
+            if v, ok := cmd.Content.(*xml.UpdateRegistrar) ; ok {
+                epp_result = epp_registrar_update_impl(ctx, v)
             }
         default:
             epp_result = &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_UNKNOWN_ERR}

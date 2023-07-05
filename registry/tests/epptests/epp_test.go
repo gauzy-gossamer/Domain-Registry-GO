@@ -169,7 +169,7 @@ func TestEPPContact(t *testing.T) {
 
     test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
 
-    info_contact := xml.InfoContact{Name:test_contact}
+    info_contact := xml.InfoObject{Name:test_contact}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
     epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
@@ -185,7 +185,7 @@ func TestEPPContact(t *testing.T) {
     create_contact := getCreateContact(person_handle, CONTACT_PERSON)
     createContact(t, eppc, create_contact, EPP_OK, sessionid)
 
-    info_contact = xml.InfoContact{Name:person_handle}
+    info_contact = xml.InfoObject{Name:person_handle}
     cmd = xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
     cmd.Content = &info_contact
     epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
@@ -346,7 +346,8 @@ func TestEPPHost(t *testing.T) {
     }
 
     updateHost(t, eppc, test_host, []string{"127.1110.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
-//    updateHost(t, serv, test_host, []string{}, []string{"127.0.0.1"}, EPP_PARAM_VALUE_POLICY, sessionid)
+    /* nonexistant ip addr */
+    updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_PARAM_VALUE_POLICY, sessionid)
     updateHost(t, eppc, test_host, []string{"127.0.0.1"}, []string{}, EPP_OK, sessionid)
     updateHost(t, eppc, non_subordinate_host, []string{"127.0.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
     updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_OK, sessionid)

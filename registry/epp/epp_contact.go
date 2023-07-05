@@ -71,7 +71,7 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
     return contact_data, object_states, nil
 }
 
-func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoContact) (*EPPResult) {
+func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     ctx.logger.Info("Info contact", v.Name)
     contact_handle := strings.ToLower(v.Name)
     contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, false)

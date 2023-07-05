@@ -5,7 +5,7 @@ import (
 )
 
 func TransferDomain(db *server.DBConn, domainid uint64, new_clid uint) error {
-    err := lockObjectById(db, domainid, "domain")
+    err := LockObjectById(db, domainid, "domain")
     if err != nil {
         return err
     }
@@ -18,7 +18,7 @@ func TransferDomain(db *server.DBConn, domainid uint64, new_clid uint) error {
         return err
     }
 
-    err = updateObject(db, domainid, new_clid)
+    err = UpdateObject(db, domainid, new_clid)
 
     return err
 }

@@ -243,7 +243,7 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "contact:info":
-            var info_contact InfoContact
+            var info_contact InfoObject
 
             info_contact.Name = xpath.String(ctx.Find("contact:id"))
 
@@ -454,6 +454,21 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             cmd.CmdType = EPP_UPDATE_CONTACT
             cmd.Content = &update_contact
+
+            return &cmd, nil
+        case "registrar:update":
+            var update_registrar UpdateRegistrar
+
+            update_registrar.Name = xpath.String(ctx.Find("registrar:id"))
+
+            update_registrar.AddAddrs = getElementList(ctx, "registrar:add/registrar:addr")
+            update_registrar.RemAddrs = getElementList(ctx, "registrar:rem/registrar:addr")
+
+            update_registrar.WWW = xpath.String(ctx.Find("registrar:chg/registrar:www"))
+            update_registrar.Whois = xpath.String(ctx.Find("registrar:chg/registrar:whois"))
+
+            cmd.CmdType = EPP_UPDATE_REGISTRAR
+            cmd.Content = &update_registrar
 
             return &cmd, nil
         default:

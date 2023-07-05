@@ -417,7 +417,7 @@ func epp_domain_renew_impl(ctx *EPPContext, v *xml.RenewDomain) (*EPPResult) {
     }
     defer ctx.dbconn.Rollback()
 
-    err = dbreg.RenewDomain(ctx.dbconn, domain_data.Id, domain_data.Expiration_date, new_exdate)
+    err = dbreg.RenewDomain(ctx.dbconn, domain_data.Id, ctx.session.Regid, domain_data.Expiration_date, new_exdate)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}

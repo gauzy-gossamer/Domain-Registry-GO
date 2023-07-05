@@ -42,7 +42,7 @@ func (up *UpdateDomainDB) SetRemHosts(rem_hosts []HostObj) *UpdateDomainDB {
 }
 
 func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) error {
-    err := lockObjectById(db, domainid, "domain")
+    err := LockObjectById(db, domainid, "domain")
     if err != nil {
         return err
     }
@@ -81,7 +81,7 @@ func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) e
         }
     }
 
-    err = updateObject(db, domainid, regid)
+    err = UpdateObject(db, domainid, regid)
 
     return err
 }

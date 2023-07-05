@@ -110,7 +110,7 @@ func (up *UpdateContactDB) SetVerified(verified bool) *UpdateContactDB {
 }
 
 func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint) error {
-    err := lockObjectById(db, contactid, "contact")
+    err := LockObjectById(db, contactid, "contact")
     if err != nil {
         return err
     }
@@ -184,7 +184,7 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
         }
     }
 
-    err = updateObject(db, contactid, regid)
+    err = UpdateObject(db, contactid, regid)
 
     return err
 }
