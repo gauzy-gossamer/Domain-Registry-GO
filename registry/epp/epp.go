@@ -190,10 +190,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
     return epp_result
 }
 
-func authenticateRegistrar(db *server.DBConn, regid uint, v *xml.EPPLogin) (bool, error) {
+func authenticateRegistrar(ctx *EPPContext, regid uint, v *xml.EPPLogin) (bool, error) {
     var cert string
-    glg.Info("authenticate", regid, v.Fingerprint, v.PW)
-    row := db.QueryRow("SELECT cert FROM registraracl " +
+    ctx.logger.Info("authenticate", regid, v.Fingerprint, v.PW)
+    row := ctx.dbconn.QueryRow("SELECT cert FROM registraracl " +
                        "WHERE registrarid = $1::integer and cert = $2::text and password = $3::text", regid, v.Fingerprint, v.PW)
     err := row.Scan(&cert)
 
@@ -222,7 +222,7 @@ func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
-    if ok, err := authenticateRegistrar(ctx.dbconn, id, v); !ok || err != nil {
+    if ok, err := authenticateRegistrar(ctx, id, v); !ok || err != nil {
         if !ok {
             return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
         }

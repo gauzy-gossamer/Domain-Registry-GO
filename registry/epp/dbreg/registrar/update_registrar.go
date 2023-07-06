@@ -13,6 +13,9 @@ import (
 type UpdateRegistrar struct {
     www NullableVal
     whois NullableVal
+    fax NullableVal
+    voice NullableVal
+    emails NullableVal
 }
 
 func NewUpdateRegistrar() UpdateRegistrar {
@@ -20,6 +23,9 @@ func NewUpdateRegistrar() UpdateRegistrar {
 
     obj.www.Set(nil)
     obj.whois.Set(nil)
+    obj.fax.Set(nil)
+    obj.voice.Set(nil)
+    obj.emails.Set(nil)
 
     return obj
 }
@@ -34,6 +40,20 @@ func (u *UpdateRegistrar) SetWhois(whois string) *UpdateRegistrar {
     return u
 }
 
+func (u *UpdateRegistrar) SetVoice(voice []string) *UpdateRegistrar {
+    u.voice.Set(voice)
+    return u
+}
+
+func (u *UpdateRegistrar) SetFax(fax []string) *UpdateRegistrar {
+    u.fax.Set(fax)
+    return u
+}
+
+func (u *UpdateRegistrar) SetEmails(emails []string) *UpdateRegistrar {
+    u.emails.Set(emails)
+    return u
+}
 
 func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint, add_addrs []string, rem_addrs []string) error {
     err := dbreg.LockObjectById(db, registrarid, "registrar")
@@ -51,6 +71,18 @@ func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint
     if !u.whois.IsNull() {
         params = append(params, u.whois.Get())
         fields = append(fields, "whois = $" + strconv.Itoa(len(params)) + "::text")
+    }
+    if !u.fax.IsNull() {
+        params = append(params, dbreg.PackJson(u.fax.Get().([]string)))
+        fields = append(fields, "fax = $" + strconv.Itoa(len(params)) + "::jsonb")
+    }
+    if !u.voice.IsNull() {
+        params = append(params, dbreg.PackJson(u.voice.Get().([]string)))
+        fields = append(fields, "telephone = $" + strconv.Itoa(len(params)) + "::jsonb")
+    }
+    if !u.emails.IsNull() {
+        params = append(params, dbreg.PackJson(u.emails.Get().([]string)))
+        fields = append(fields, "email = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
 
     if len(params) > 0 {

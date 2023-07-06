@@ -76,6 +76,10 @@ type UpdateRegistrar struct {
     Name string
     AddAddrs []string
     RemAddrs []string
+    AddEmails []string
+    RemEmails []string
+    Fax []string
+    Voice []string
     WWW string
     Whois string
 }

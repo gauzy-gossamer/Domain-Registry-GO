@@ -191,17 +191,42 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
     }
 
     update_contact := dbreg.NewUpdateContactDB()
+    if len(v.Fields.IntPostal) > 0 {
+        update_contact.SetIntPostal(v.Fields.IntPostal)
+    }
+    if len(v.Fields.IntAddress) > 0 {
+        update_contact.SetIntAddress(v.Fields.IntAddress)
+    }
+    if len(v.Fields.LocPostal) > 0 {
+        update_contact.SetLocPostal(v.Fields.LocPostal)
+    }
+    if len(v.Fields.LocAddress) > 0 {
+        update_contact.SetLocAddress(v.Fields.LocAddress)
+    }
+
+    if len(v.Fields.LegalAddress) > 0 {
+        update_contact.SetLegalAddress(v.Fields.LegalAddress)
+    }
+    if len(v.Fields.TaxNumbers) > 0 {
+        update_contact.SetTaxNumbers(v.Fields.TaxNumbers)
+    }
+
+    if len(v.Fields.Birthday) > 0 {
+        update_contact.SetBirthday(v.Fields.Birthday)
+    }
+    if len(v.Fields.Passport) > 0 {
+        update_contact.SetPassport(v.Fields.Passport)
+    }
+
     if len(v.Fields.Emails) > 0 {
         update_contact.SetEmails(v.Fields.Emails)
     }
     if len(v.Fields.Voice) > 0 {
         update_contact.SetVoice(v.Fields.Voice)
     }
-/*
     if len(v.Fields.Fax) > 0 {
         update_contact.SetFax(v.Fields.Fax)
     }
-*/
     if !v.Fields.Verified.IsNull() {
         update_contact.SetVerified(v.Fields.Verified.Get())
     }

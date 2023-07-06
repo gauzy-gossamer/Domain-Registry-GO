@@ -96,6 +96,12 @@ func epp_registrar_update_impl(ctx *EPPContext, v *xml.UpdateRegistrar) *EPPResu
     if len(v.Whois) > 0 {
         update_reg.SetWhois(v.Whois)
     }
+    if len(v.Voice) > 0 {
+        update_reg.SetVoice(v.Voice)
+    }
+    if len(v.Fax) > 0 {
+        update_reg.SetFax(v.Fax)
+    }
 
     err = update_reg.Exec(ctx.dbconn, registrar_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
     if err != nil {

@@ -6,7 +6,6 @@ import (
     "registry/epp/dbreg/registrar"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
-    "github.com/kpango/glg"
 )
 
 func set_pending_transfer(ctx *EPPContext, domainid uint64) error {
@@ -41,7 +40,7 @@ func query_transfer_object(ctx *EPPContext, domain string, v *xml.TransferDomain
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -70,7 +69,7 @@ func cancel_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -80,30 +79,30 @@ func cancel_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
 
     err = ctx.dbconn.Begin()
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
     err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientCancelled, ctx.session.Regid, transfer_obj.AcID.Id.Get())
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     if err = cancel_pending_transfer(ctx, domain_data.Id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = ctx.dbconn.Commit(); err !=nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     find_transfer = dbreg.FindTransferRequest{Domainid:domain_data.Id, TrID:transfer_obj.Id}
     transfer_obj, err = find_transfer.Exec(ctx.dbconn)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -121,7 +120,7 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -131,7 +130,7 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -140,30 +139,30 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     }
 
     if err = ctx.dbconn.Begin(); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
     err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientRejected, ctx.session.Regid, transfer_obj.ReID.Id.Get())
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     if err = cancel_pending_transfer(ctx, domain_id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = ctx.dbconn.Commit(); err !=nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     find_transfer = dbreg.FindTransferRequest{Domainid:domain_id, TrID:transfer_obj.Id}
     transfer_obj, err = find_transfer.Exec(ctx.dbconn)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     transfer_obj.Domain = domain
@@ -180,7 +179,7 @@ func approve_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDom
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -190,7 +189,7 @@ func approve_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDom
         if err == pgx.ErrNoRows {
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -199,7 +198,7 @@ func approve_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDom
     }
 
     if err = ctx.dbconn.Begin(); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
     defer ctx.dbconn.Rollback()
@@ -207,23 +206,23 @@ func approve_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDom
     /* this is an incomplete transfer, we also need to transfer or copy linked objects (contact, hosts) */
     err = dbreg.TransferDomain(ctx.dbconn, domain_id, ctx.session.Regid)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientApproved, ctx.session.Regid, transfer_obj.ReID.Id.Get())
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = cancel_pending_transfer(ctx, domain_id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = ctx.dbconn.Commit(); err !=nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
@@ -252,14 +251,14 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
         }
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     /* acquirer registrar doesn't have permissions for the zone in which domain is registered */
     if ok, err := testRegistrarZoneAccess(ctx.dbconn, acquirer.Id.Get(), domain_data.ZoneId); !ok || err != nil {
         if err != nil {
-            glg.Error(err)
+            ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"acID doesn't have permissions to use this zone"}}
@@ -278,31 +277,31 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     cr_transfer.SetParams(ctx.session.Regid, acquirer.Id.Get(), domain_data.Id)
 
     if err = ctx.dbconn.Begin() ; err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
 
     tr_request_id, err := cr_transfer.Exec(ctx.dbconn, acquirer.Id.Get())
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = set_pending_transfer(ctx, domain_data.Id); err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = ctx.dbconn.Commit(); err !=nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
     find_transfer = dbreg.FindTransferRequest{Domainid:domain_data.Id, TrID:tr_request_id}
     transfer_obj, err := find_transfer.Exec(ctx.dbconn)
     if err != nil {
-        glg.Error(err)
+        ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
@@ -314,7 +313,7 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
 }
 
 func epp_domain_transfer_impl(ctx *EPPContext, v *xml.TransferDomain) (*EPPResult) {
-    glg.Info("Domain transfer", v.Name)
+    ctx.logger.Info("Domain transfer", v.Name)
     domain := normalizeDomain(v.Name)
 
     switch v.OP {

@@ -463,9 +463,13 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             update_registrar.AddAddrs = getElementList(ctx, "registrar:add/registrar:addr")
             update_registrar.RemAddrs = getElementList(ctx, "registrar:rem/registrar:addr")
+            update_registrar.AddEmails = getElementList(ctx, "registrar:add/registrar:email")
+            update_registrar.RemEmails = getElementList(ctx, "registrar:rem/registrar:email")
 
             update_registrar.WWW = xpath.String(ctx.Find("registrar:chg/registrar:www"))
             update_registrar.Whois = xpath.String(ctx.Find("registrar:chg/registrar:whois"))
+            update_registrar.Fax = getElementList(ctx, "registrar:chg/registrar:fax")
+            update_registrar.Voice = getElementList(ctx, "registrar:chg/registrar:voice")
 
             cmd.CmdType = EPP_UPDATE_REGISTRAR
             cmd.Content = &update_registrar
