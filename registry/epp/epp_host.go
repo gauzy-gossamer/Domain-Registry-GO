@@ -76,7 +76,7 @@ func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*Inf
     return host_data, object_states, nil
 }
 
-func epp_host_info_impl(ctx *EPPContext, v *xml.InfoHost) (*EPPResult) {
+func epp_host_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     ctx.logger.Info("Info host", v.Name)
     host_name := normalizeDomainUpper(v.Name)
     host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
@@ -159,7 +159,7 @@ func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
 func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
     host_name := normalizeDomainUpper(v.Name)
     host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
-    ctx.logger.Info("Delete host", host_name)
+    ctx.logger.Info("Update host", host_name)
     host_data, object_states, cmd := get_host_object(ctx, host_handle, true)
     if cmd != nil {
         return cmd
@@ -214,8 +214,30 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    // TODO check rem and add addresses
-    //host_addrs := getHostIPAddresses(ctx.dbconn, host_data.Id)
+    if len(v.RemAddrs) > 0 {
+        host_addrs, err := dbreg.GetHostIPAddrs(ctx.dbconn, host_data.Id)
+        if err != nil {
+            ctx.logger.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
+
+        /* TODO normalize ipv6 addresses */
+        err_addr := allAddrsPresent(v.RemAddrs, host_addrs)
+        if err_addr != "" {
+            err_msg := err_addr + " isn't present for this host"
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_msg}}
+        }
+        err_addr = anyAddrsPresent(host_addrs, v.AddAddrs)
+        if err_addr != "" {
+            err_msg := err_addr + " already present for this host"
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_msg}}
+        }
+
+        if len(host_addrs) + len(v.AddAddrs) - len(v.RemAddrs) > ctx.serv.RGconf.MaxValueList {
+            err_val := "Maximum number of IPs exceeded"
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_val}}
+        }
+    }
 
     err = dbreg.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
     if err != nil {

@@ -5,7 +5,7 @@ import (
 )
 
 func DeleteDomain(db *server.DBConn, domainid uint64) error {
-    err := lockObjectById(db, domainid, "domain")
+    err := LockObjectById(db, domainid, "domain")
     if err != nil {
         return err
     }

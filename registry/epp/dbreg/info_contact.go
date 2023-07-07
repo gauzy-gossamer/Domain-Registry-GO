@@ -1,6 +1,8 @@
 package dbreg
 
 import (
+    "strings"
+
     "registry/server"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
@@ -22,44 +24,45 @@ func NewInfoContactDB() InfoContactDB {
 }
 
 func (q *InfoContactDB) create_info_query() string {
-    info_host_query := "SELECT obr.id AS id " +
-        " , obr.roid AS roid , obr.name AS contact_name " +
-        " , obj.clid AS registrar_id " +
-        " , clr.handle AS registrar_handle, obr.crid AS cr_registrar_id " +
-        " , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id " +
-        " , upr.handle AS upd_registrar_handle " +
-        " , c.contact_type, c.email, c.telephone, c.fax, c.verified " +
-        " , c.birthday::text, c.vat, c.intpostal, c.locpostal " +
-        " , c.locaddress, c.intaddress, c.legaladdress " +
-        " , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created " +
-        " , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time " +
-        " , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time " /*+
+    var  query strings.Builder
+    query.WriteString("SELECT obr.id AS id ")
+    query.WriteString(" , obr.roid AS roid , obr.name AS contact_name ")
+    query.WriteString(" , obj.clid AS registrar_id ")
+    query.WriteString(" , clr.handle AS registrar_handle, obr.crid AS cr_registrar_id ")
+    query.WriteString(" , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id ")
+    query.WriteString(" , upr.handle AS upd_registrar_handle ")
+    query.WriteString(" , c.contact_type, c.email, c.telephone, c.fax, c.verified ")
+    query.WriteString(" , c.birthday::text, c.passport, c.vat, c.intpostal, c.locpostal ")
+    query.WriteString(" , c.locaddress, c.intaddress, c.legaladdress ")
+    query.WriteString(" , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created ")
+    query.WriteString(" , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time ")
+    query.WriteString(" , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time ") /*+
         " , obj.authinfopw " +
         " , (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp AS utc_timestamp " +
         " , (CURRENT_TIMESTAMP AT TIME ZONE '" + q.p_local_zone  +"')::timestamp AS local_timestamp " */
 
-    info_host_query += " FROM object_registry obr " +
-                       " JOIN object obj ON obj.id = obr.id " +
-                       " JOIN contact c ON obr.id = c.id " +
-                       " JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = obr.crid "
+    query.WriteString(" FROM object_registry obr ")
+    query.WriteString(" JOIN object obj ON obj.id = obr.id ")
+    query.WriteString(" JOIN contact c ON obr.id = c.id ")
+    query.WriteString(" JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = obr.crid ")
 
-    info_host_query += " LEFT JOIN registrar upr ON upr.id = obj.upid "
+    query.WriteString(" LEFT JOIN registrar upr ON upr.id = obj.upid ")
 
-    info_host_query += " WHERE obr.type = get_object_type_id('contact'::text) "
+    query.WriteString(" WHERE obr.type = get_object_type_id('contact'::text) ")
 
     if _, ok := q.params["name"]; ok {
-        info_host_query += "and obr.name = lower($1)"
+        query.WriteString("and obr.name = lower($1)")
     } else {
-        info_host_query += "and obr.id = $1"
+        query.WriteString("and obr.id = $1")
     }
 
     if q.lock_ {
-        info_host_query += " FOR UPDATE of obr "
+        query.WriteString(" FOR UPDATE of obr ")
     } else {
-        info_host_query += " FOR SHARE of obr "
+        query.WriteString(" FOR SHARE of obr ")
     }
 
-    return info_host_query
+    return query.String()
 }
 
 func (q *InfoContactDB) SetLock(lock bool) *InfoContactDB {
@@ -78,13 +81,13 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
     row := db.QueryRow(info_query, q.params["name"])
     var data InfoContactData
 
-    var email, telephone, fax, birthday, taxnumbers pgtype.Text
+    var email, telephone, fax, birthday, passport, taxnumbers pgtype.Text
     var locaddress, intaddress, legaladdress pgtype.Text
 
     err := row.Scan(&data.Id, &data.Roid, &data.Name,
                     &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,
                     &data.Create_registrar.Id, &data.Create_registrar.Handle, &data.Update_registrar.Id, &data.Update_registrar.Handle,
-                    &data.ContactType, &email, &telephone, &fax, &data.Verified, &birthday, &taxnumbers, &data.IntPostal, &data.LocPostal,
+                    &data.ContactType, &email, &telephone, &fax, &data.Verified, &birthday, &passport, &taxnumbers, &data.IntPostal, &data.LocPostal,
                     &locaddress, &intaddress, &legaladdress,
                     &data.Creation_time, &data.Transfer_time, &data.Update_time)
 
@@ -98,13 +101,14 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
         data.TaxNumbers = taxnumbers.String
     }
 
-    data.LocAddress = unpackJson(locaddress)
-    data.IntAddress = unpackJson(intaddress)
-    data.LegalAddress = unpackJson(legaladdress)
+    data.Passport = UnpackJson(passport)
+    data.LocAddress = UnpackJson(locaddress)
+    data.IntAddress = UnpackJson(intaddress)
+    data.LegalAddress = UnpackJson(legaladdress)
 
-    data.Emails = unpackJson(email)
-    data.Voice = unpackJson(telephone)
-    data.Fax = unpackJson(fax)
+    data.Emails = UnpackJson(email)
+    data.Voice = UnpackJson(telephone)
+    data.Fax = UnpackJson(fax)
 
     return &data, nil
 }

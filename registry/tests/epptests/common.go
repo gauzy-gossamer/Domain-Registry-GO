@@ -68,7 +68,7 @@ func logoutSession(t *testing.T, serv *server.Server, dbconn *server.DBConn, ses
 }
 
 func generateRandomDomain(zone string) string {
-    rand_id := server.GenerateRandString(6)
+    rand_id := server.GenerateRandString(8)
     return rand_id + "." + zone
 }
 

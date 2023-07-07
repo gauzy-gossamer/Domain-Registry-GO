@@ -5,7 +5,7 @@ import (
 )
 
 func DeleteContact(db *server.DBConn, contactid uint64) error {
-    err := lockObjectById(db, contactid, "contact")
+    err := LockObjectById(db, contactid, "contact")
     if err != nil {
         return err
     }

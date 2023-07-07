@@ -129,7 +129,7 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
                 epp_result = epp_contact_check_impl(ctx, v)
             }
         case EPP_INFO_CONTACT:
-            if v, ok := cmd.Content.(*xml.InfoContact) ; ok {
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
                 epp_result = epp_contact_info_impl(ctx, v)
             }
         case EPP_CREATE_CONTACT:
@@ -149,7 +149,7 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
                 epp_result = epp_host_check_impl(ctx, v)
             }
         case EPP_INFO_HOST:
-            if v, ok := cmd.Content.(*xml.InfoHost) ; ok {
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
                 epp_result = epp_host_info_impl(ctx, v)
             }
         case EPP_CREATE_HOST:
@@ -170,6 +170,14 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
             if v, ok := cmd.Content.(string) ; ok  {
                 epp_result = epp_poll_ack_impl(ctx, v)
             }
+        case EPP_INFO_REGISTRAR:
+            if v, ok := cmd.Content.(*xml.InfoObject) ; ok {
+                epp_result = epp_registrar_info_impl(ctx, v)
+            }
+        case EPP_UPDATE_REGISTRAR:
+            if v, ok := cmd.Content.(*xml.UpdateRegistrar) ; ok {
+                epp_result = epp_registrar_update_impl(ctx, v)
+            }
         default:
             epp_result = &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_UNKNOWN_ERR}
     }
@@ -182,10 +190,10 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
     return epp_result
 }
 
-func authenticateRegistrar(db *server.DBConn, regid uint, v *xml.EPPLogin) (bool, error) {
+func authenticateRegistrar(ctx *EPPContext, regid uint, v *xml.EPPLogin) (bool, error) {
     var cert string
-    glg.Info("authenticate", regid, v.Fingerprint, v.PW)
-    row := db.QueryRow("SELECT cert FROM registraracl " +
+    ctx.logger.Info("authenticate", regid, v.Fingerprint, v.PW)
+    row := ctx.dbconn.QueryRow("SELECT cert FROM registraracl " +
                        "WHERE registrarid = $1::integer and cert = $2::text and password = $3::text", regid, v.Fingerprint, v.PW)
     err := row.Scan(&cert)
 
@@ -214,7 +222,7 @@ func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
-    if ok, err := authenticateRegistrar(ctx.dbconn, id, v); !ok || err != nil {
+    if ok, err := authenticateRegistrar(ctx, id, v); !ok || err != nil {
         if !ok {
             return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
         }

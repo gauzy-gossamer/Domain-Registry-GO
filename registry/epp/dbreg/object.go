@@ -88,7 +88,7 @@ func deleteObject(db *server.DBConn, object_id uint64) error {
     return err
 }
 
-func updateObject(db *server.DBConn, object_id uint64, regid uint) error {
+func UpdateObject(db *server.DBConn, object_id uint64, regid uint) error {
     row := db.QueryRow("UPDATE object SET update = now(), upid = $1::integer " +
             "WHERE id = $2::integer RETURNING id", regid, object_id)
 
@@ -97,7 +97,7 @@ func updateObject(db *server.DBConn, object_id uint64, regid uint) error {
     return err
 }
 
-func lockObjectById(db *server.DBConn, object_id uint64, object_type string) error {
+func LockObjectById(db *server.DBConn, object_id uint64, object_type string) error {
     row := db.QueryRow("SELECT id FROM object_registry WHERE id = $1::integer and erdate is null " +
                       "and type = get_object_type_id($2::text) FOR UPDATE", object_id, object_type)
     var locked_id uint64

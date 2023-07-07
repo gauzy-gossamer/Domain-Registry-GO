@@ -142,6 +142,28 @@ type InfoHostData struct {
     Addrs []string /* ip-addresses for subordinate hosts */
 }
 
+type InfoRegistrarData struct {
+    ObjectData
+
+    Handle string
+
+    IntPostal pgtype.Text
+    IntAddress []string
+    LocPostal pgtype.Text
+    LocAddress []string
+
+    LegalAddress []string
+
+    Emails []string
+    Voice []string
+    Fax []string
+
+    WWW pgtype.Text
+    Whois pgtype.Text
+
+    Addrs []string
+}
+
 type InfoDomainData struct {
     ObjectData
 

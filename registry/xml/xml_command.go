@@ -23,18 +23,13 @@ type CheckObject struct {
     Names []string
 }
 
+type InfoObject struct {
+    Name string
+}
+
 type InfoDomain struct {
     Name string
     AuthInfo string
-}
-
-type InfoHost struct {
-    Name string
-}
-
-type InfoContact struct {
-    Name string
-    Emails []string
 }
 
 type CreateDomain struct {
@@ -75,6 +70,18 @@ type UpdateContact struct {
     Fields eppcom.ContactFields
     AddStatus []string
     RemStatus []string
+}
+
+type UpdateRegistrar struct {
+    Name string
+    AddAddrs []string
+    RemAddrs []string
+    AddEmails []string
+    RemEmails []string
+    Fax []string
+    Voice []string
+    WWW string
+    Whois string
 }
 
 type RenewDomain struct {

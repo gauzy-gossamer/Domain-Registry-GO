@@ -81,25 +81,36 @@ type UnverifiedField struct {
     XMLName  xml.Name `xml:"unverified"`
 }
 
+type PersonPostalInfo struct {
+    Name string `xml:"name,omitempty"`
+    Address []string `xml:"address,omitempty"`
+}
+
+type PostalInfo struct {
+    Org string `xml:"org,omitempty"`
+    Address []string `xml:"address,omitempty"`
+}
+
+type LegalInfo struct {
+    Address []string `xml:"address,omitempty"`
+}
+
 type PersonFields struct {
     XMLName  xml.Name `xml:"person"`
-    IntPostal struct {
-        Name string `xml:"name,omitempty"`
-        Address []string `xml:"address,omitempty"`
-    } `xml:"intPostalInfo"`
+    IntPostal PersonPostalInfo `xml:"intPostalInfo"`
+    LocPostal PersonPostalInfo `xml:"locPostalInfo"`
 
     Birthday string `xml:"birthday,omitempty"`
     Voice []string `xml:"voice,omitempty"`
     Email []string `xml:"email,omitempty"`
-
 }
 
 type OrgFields struct {
     XMLName  xml.Name `xml:"organization"`
-    IntPostal struct {
-        Org string `xml:"org,omitempty"`
-        Address []string `xml:"address,omitempty"`
-    } `xml:"intPostalInfo"`
+
+    IntPostal PostalInfo `xml:"intPostalInfo"`
+    LocPostal PostalInfo `xml:"locPostalInfo"`
+    LegalInfo LegalInfo `xml:"legalInfo,omitempty"`
 
     Voice []string `xml:"voice,omitempty"`
     Email []string `xml:"email,omitempty"`
@@ -122,6 +133,26 @@ type Contact struct {
     UpID     string   `xml:"upID,omitempty"`
     UpDate   string   `xml:"upDate,omitempty"`
     Verified interface {}
+}
+
+type Registrar struct {
+    XMLName  xml.Name `xml:"registrar:infData"`
+    XMLNSDom string   `xml:"xmlns:registrar,attr"`
+    XMLNS    string   `xml:"xmlns,attr,omitempty"`
+
+    Handle     string   `xml:"id"`
+
+    IntPostal PostalInfo `xml:"intPostalInfo,omitempty"`
+    LocPostal PostalInfo `xml:"locPostalInfo,omitempty"`
+    LegalInfo LegalInfo `xml:"legalInfo,omitempty"`
+    Voice []string `xml:"voice,omitempty"`
+    Fax []string `xml:"fax,omitempty"`
+    Email []string `xml:"email,omitempty"`
+    WWW string `xml:"www,omitempty"`
+    Whois string `xml:"whois,omitempty"`
+    Addrs    []string `xml:"addr,omitempty"`
+
+    UpDate   string   `xml:"upDate,omitempty"`
 }
 
 type CDObj struct {

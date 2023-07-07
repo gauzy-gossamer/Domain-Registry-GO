@@ -5,7 +5,7 @@ import (
 )
 
 func UpdateHost(db *server.DBConn, hostid uint64, regid uint, add_addrs []string, rem_addrs []string) error {
-    err := lockObjectById(db, hostid, "nsset")
+    err := LockObjectById(db, hostid, "nsset")
     if err != nil {
         return err
     }
@@ -28,7 +28,7 @@ func UpdateHost(db *server.DBConn, hostid uint64, regid uint, add_addrs []string
         }
     }
 
-    err = updateObject(db, hostid, regid)
+    err = UpdateObject(db, hostid, regid)
 
     return err
 }

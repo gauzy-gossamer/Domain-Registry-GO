@@ -1,6 +1,7 @@
 package dbreg
 
 import (
+    "strings"
     "registry/server"
     . "registry/epp/eppcom"
     "github.com/jackc/pgtype"
@@ -22,45 +23,46 @@ func NewInfoDomainDB() InfoDomainDB {
 }
 
 func (q *InfoDomainDB) create_info_query() string {
-    info_domain_query := "SELECT dobr.id AS id " +
-        " , dobr.roid AS roid , dobr.name AS fqdn " +
-        " , (dobr.erdate AT TIME ZONE 'UTC' ) AT TIME ZONE '" + q.p_local_zone + "' AS delete_time " +
-        " , cor.id AS registrant_id , cor.name  AS registrant_handle " +
-        " , dt.description, obj.clid AS registrar_id " +
-        " , clr.handle AS registrar_handle, dobr.crid AS cr_registrar_id " +
-        " , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id " +
-        " , upr.handle AS upd_registrar_handle " +
-        " , (dobr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created " +
-        " , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time " +
-        " , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time " +
-        " , dt.exdate , obj.authinfopw " +
-        " , (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp AS utc_timestamp, z.id as zone_id "/*
+    var query strings.Builder
+    query.WriteString("SELECT dobr.id AS id ")
+    query.WriteString(" , dobr.roid AS roid , dobr.name AS fqdn ")
+    query.WriteString(" , (dobr.erdate AT TIME ZONE 'UTC' ) AT TIME ZONE '" + q.p_local_zone + "' AS delete_time ")
+    query.WriteString(" , cor.id AS registrant_id , cor.name  AS registrant_handle ")
+    query.WriteString(" , dt.description, obj.clid AS registrar_id ")
+    query.WriteString(" , clr.handle AS registrar_handle, dobr.crid AS cr_registrar_id ")
+    query.WriteString(" , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id ")
+    query.WriteString(" , upr.handle AS upd_registrar_handle ")
+    query.WriteString(" , (dobr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created ")
+    query.WriteString(" , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time ")
+    query.WriteString(" , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time ")
+    query.WriteString(" , dt.exdate , obj.authinfopw ")
+    query.WriteString(" , (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp AS utc_timestamp, z.id as zone_id ")/*
         " , obj.authinfoupdate >= current_timestamp + (SELECT val || ' days' FROM enum_parameters WHERE id = 21)::interval AS authinfo_valid " +
         " , z.id AS zone_id, z.fqdn AS zone_fqdn" */
 
-    info_domain_query += " FROM object_registry dobr " +
-                         " JOIN object obj ON obj.id = dobr.id JOIN domain dt ON dt.id = obj.id " +
-                         " JOIN object_registry cor ON dt.registrant=cor.id " +
-                         " JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = dobr.crid " +
-                         " JOIN zone z ON dt.zone = z.id "
+    query.WriteString(" FROM object_registry dobr ")
+    query.WriteString(" JOIN object obj ON obj.id = dobr.id JOIN domain dt ON dt.id = obj.id ")
+    query.WriteString(" JOIN object_registry cor ON dt.registrant=cor.id ")
+    query.WriteString(" JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = dobr.crid ")
+    query.WriteString(" JOIN zone z ON dt.zone = z.id ")
 
-    info_domain_query += " LEFT JOIN registrar upr ON upr.id = obj.upid "
+    query.WriteString(" LEFT JOIN registrar upr ON upr.id = obj.upid ")
 
-    info_domain_query += " WHERE dobr.type = get_object_type_id('domain'::text) "
+    query.WriteString(" WHERE dobr.type = get_object_type_id('domain'::text) ")
 
     if _, ok := q.params["fqdn"]; ok {
-        info_domain_query += "and dobr.name = $1"
+        query.WriteString("and dobr.name = $1")
     } else {
-        info_domain_query += "and dobr.id = $1"
+        query.WriteString("and dobr.id = $1")
     }
 
     if q.lock_ {
-        info_domain_query += " FOR UPDATE of dobr "
+        query.WriteString(" FOR UPDATE of dobr ")
     } else {
-        info_domain_query += " FOR SHARE of dobr "
+        query.WriteString(" FOR SHARE of dobr ")
     }
 
-    return info_domain_query
+    return query.String()
 }
 
 func (q *InfoDomainDB) Set_lock(lock bool) *InfoDomainDB {
@@ -88,7 +90,7 @@ func (q *InfoDomainDB) Exec(db *server.DBConn) (*InfoDomainData, error) {
     if err != nil {
         return nil, err
     }
-    data.Description = unpackJson(description)
+    data.Description = UnpackJson(description)
 
     return &data, nil
 }

@@ -234,7 +234,7 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "host:info":
-            var info_host InfoHost
+            var info_host InfoObject
 
             info_host.Name = xpath.String(ctx.Find("host:name"))
 
@@ -243,12 +243,21 @@ func parseInfo(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             return &cmd, nil
         case "contact:info":
-            var info_contact InfoContact
+            var info_contact InfoObject
 
             info_contact.Name = xpath.String(ctx.Find("contact:id"))
 
             cmd.CmdType = EPP_INFO_CONTACT
             cmd.Content = &info_contact
+
+            return &cmd, nil
+        case "registrar:info":
+            var info_registrar InfoObject
+
+            info_registrar.Name = xpath.String(ctx.Find("registrar:id"))
+
+            cmd.CmdType = EPP_INFO_REGISTRAR
+            cmd.Content = &info_registrar
 
             return &cmd, nil
         default:
@@ -445,6 +454,25 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
 
             cmd.CmdType = EPP_UPDATE_CONTACT
             cmd.Content = &update_contact
+
+            return &cmd, nil
+        case "registrar:update":
+            var update_registrar UpdateRegistrar
+
+            update_registrar.Name = xpath.String(ctx.Find("registrar:id"))
+
+            update_registrar.AddAddrs = getElementList(ctx, "registrar:add/registrar:addr")
+            update_registrar.RemAddrs = getElementList(ctx, "registrar:rem/registrar:addr")
+            update_registrar.AddEmails = getElementList(ctx, "registrar:add/registrar:email")
+            update_registrar.RemEmails = getElementList(ctx, "registrar:rem/registrar:email")
+
+            update_registrar.WWW = xpath.String(ctx.Find("registrar:chg/registrar:www"))
+            update_registrar.Whois = xpath.String(ctx.Find("registrar:chg/registrar:whois"))
+            update_registrar.Fax = getElementList(ctx, "registrar:chg/registrar:fax")
+            update_registrar.Voice = getElementList(ctx, "registrar:chg/registrar:voice")
+
+            cmd.CmdType = EPP_UPDATE_REGISTRAR
+            cmd.Content = &update_registrar
 
             return &cmd, nil
         default:

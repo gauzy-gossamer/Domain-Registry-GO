@@ -139,6 +139,21 @@ func TestEPPPoll(t *testing.T) {
     logoutSession(t, serv, dbconn, sessionid)
 }
 
+func infoContact(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoContactData {
+    info_contact := xml.InfoObject{Name:name}
+    cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
+    cmd.Content = &info_contact
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }
+    if retcode == EPP_OK {
+        info := epp_res.Content.(*InfoContactData)
+        return info
+    }
+    return nil
+}
+
 func updateContact(t *testing.T, eppc *epp.EPPContext, fields ContactFields, retcode int, sessionid uint64) {
     update_contact := &xml.UpdateContact{Fields: fields}
     update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_CONTACT, Sessionid:sessionid}
@@ -169,13 +184,7 @@ func TestEPPContact(t *testing.T) {
 
     test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
 
-    info_contact := xml.InfoContact{Name:test_contact}
-    cmd := xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
-    cmd.Content = &info_contact
-    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ok", epp_res.RetCode)
-    }
+    _ = infoContact(t, eppc, test_contact, EPP_OK, sessionid)
 
     org_handle := "TEST-" + server.GenerateRandString(8)
     create_org := getCreateContact(org_handle, CONTACT_ORG)
@@ -185,22 +194,41 @@ func TestEPPContact(t *testing.T) {
     create_contact := getCreateContact(person_handle, CONTACT_PERSON)
     createContact(t, eppc, create_contact, EPP_OK, sessionid)
 
-    info_contact = xml.InfoContact{Name:person_handle}
-    cmd = xml.XMLCommand{CmdType:EPP_INFO_CONTACT, Sessionid:sessionid}
-    cmd.Content = &info_contact
-    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ok", epp_res.RetCode)
-    }
+    info_contact := infoContact(t, eppc, person_handle, EPP_OK, sessionid)
+    info_return := info_contact.ContactFields
+
     create_contact.Fields.ContactId = ""
-    info_return := epp_res.Content.(*InfoContactData).ContactFields
     if !reflect.DeepEqual(create_contact.Fields, info_return) {
         t.Error("create and info are not equal ", info_return, create_contact.Fields)
     }
 
+    /* wrong contact type */
+    updateContact(t, eppc, ContactFields{ContactId:person_handle, ContactType:CONTACT_ORG}, EPP_PARAM_VALUE_POLICY, sessionid)
+
     fields := ContactFields{ContactId:person_handle}
     fields.Verified.Set(true)
+    fields.IntPostal = "new name"
+    fields.IntAddress = []string{"new addr", "addr2"}
+    fields.LocPostal = "new loc name"
+    fields.LocAddress = []string{"new loc addr", "addr2"}
+    fields.Passport = []string{"new passport"}
+    fields.Birthday = "2000-01-04"
+
     updateContact(t, eppc, fields, EPP_OK, sessionid)
+
+    create_contact.Fields.Verified.Set(true)
+    create_contact.Fields.IntPostal = fields.IntPostal
+    create_contact.Fields.IntAddress = fields.IntAddress
+    create_contact.Fields.LocPostal = fields.LocPostal
+    create_contact.Fields.LocAddress = fields.LocAddress
+    create_contact.Fields.Passport = fields.Passport
+    create_contact.Fields.Birthday = fields.Birthday
+
+    info_contact = infoContact(t, eppc, person_handle, EPP_OK, sessionid)
+    info_return = info_contact.ContactFields
+    if !reflect.DeepEqual(create_contact.Fields, info_return) {
+        t.Error("fields dont match after contact update ", info_return, create_contact.Fields)
+    }
 
     deleteObject(t, eppc, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
     deleteObject(t, eppc, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
@@ -327,7 +355,7 @@ func TestEPPHost(t *testing.T) {
     test_host := "ns1." + generateRandomDomain(zone) 
     non_subordinate_host := "ns1." + generateRandomDomain("nonexistant.ru")
 
-    info_host := xml.InfoHost{Name:test_host}
+    info_host := xml.InfoObject{Name:test_host}
     cmd := xml.XMLCommand{CmdType:EPP_INFO_HOST, Sessionid:sessionid}
     cmd.Content = &info_host
 
@@ -346,10 +374,18 @@ func TestEPPHost(t *testing.T) {
     }
 
     updateHost(t, eppc, test_host, []string{"127.1110.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
-//    updateHost(t, serv, test_host, []string{}, []string{"127.0.0.1"}, EPP_PARAM_VALUE_POLICY, sessionid)
+    /* nonexistant ip addr */
+    updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_PARAM_VALUE_POLICY, sessionid)
     updateHost(t, eppc, test_host, []string{"127.0.0.1"}, []string{}, EPP_OK, sessionid)
     updateHost(t, eppc, non_subordinate_host, []string{"127.0.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
     updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_OK, sessionid)
+
+    /* exceed number of allowed ips */
+    add_ips := make([]string, serv.RGconf.MaxValueList + 1)
+    for i := 0; i <= serv.RGconf.MaxValueList; i++ {
+        add_ips = append(add_ips, fmt.Sprintf("127.0.1.%v", i + 1))
+    }
+    updateHost(t, eppc, test_host, add_ips, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
 
     deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
     deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)

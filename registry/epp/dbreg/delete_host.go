@@ -5,7 +5,7 @@ import (
 )
 
 func DeleteHost(db *server.DBConn, hostid uint64) error {
-    err := lockObjectById(db, hostid, "nsset")
+    err := LockObjectById(db, hostid, "nsset")
     if err != nil {
         return err
     }

@@ -122,21 +122,21 @@ func (q *CreateContactDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
     vals := "VALUES($1::integer, $2::integer, $3::jsonb, $4::jsonb, $5::text, $6::jsonb, $7::text, $8::jsonb "
     params = append(params, create_result.Id)
     params = append(params, q.contact_type)
-    params = append(params, packJson(q.emails))
-    params = append(params, packJson(q.voice))
+    params = append(params, PackJson(q.emails))
+    params = append(params, PackJson(q.voice))
     params = append(params, q.intpostal)
-    params = append(params, q.intaddress)
+    params = append(params, PackJson(q.intaddress))
     params = append(params, q.locpostal)
-    params = append(params, q.locaddress)
+    params = append(params, PackJson(q.locaddress))
 
     if q.contact_type == CONTACT_ORG {
         params = append(params, q.taxnumbers)
-        params = append(params, packJson(q.legaladdress))
-        params = append(params, packJson(q.fax))
+        params = append(params, PackJson(q.legaladdress))
+        params = append(params, PackJson(q.fax))
         cols += ", vat, legaladdress, fax)"
         vals += ", $9::text, $10::jsonb, $11::jsonb)"
     } else {
-        params = append(params, packJson(q.passport))
+        params = append(params, PackJson(q.passport))
         params = append(params, q.birthday)
         cols += ", passport, birthday)"
         vals += ", $9::jsonb, $10::date)"

@@ -182,9 +182,7 @@ func HostResponse(response *EPPResult) *ResDataS {
     for _,v := range host_data.States {
         host.States = append(host.States, ObjectState{Val:v})
     }
-    for _, ipaddr := range host_data.Addrs {
-        host.Addrs = append(host.Addrs, ipaddr)
-    }
+    host.Addrs = append(host.Addrs, host_data.Addrs...)
 
     return &ResDataS{Obj:host}
 }
@@ -224,7 +222,9 @@ func ContactResponse(response *EPPResult) *ResDataS {
 
     if contact_data.ContactType == CONTACT_ORG {
         org_data := OrgFields{}
-        org_data.IntPostal.Org = contact_data.IntPostal
+        org_data.IntPostal = PostalInfo{Org:contact_data.IntPostal, Address:contact_data.IntAddress}
+        org_data.LocPostal = PostalInfo{Org:contact_data.LocPostal, Address:contact_data.LocAddress}
+        org_data.LegalInfo.Address = contact_data.LegalAddress
         org_data.Email = contact_data.Emails
         org_data.Fax = contact_data.Fax
         org_data.Voice = contact_data.Voice
@@ -232,7 +232,8 @@ func ContactResponse(response *EPPResult) *ResDataS {
         contact.ContactData = org_data
     } else {
         person_data := PersonFields{}
-        person_data.IntPostal.Name = contact_data.IntPostal
+        person_data.IntPostal = PersonPostalInfo{Name:contact_data.IntPostal, Address:contact_data.IntAddress}
+        person_data.LocPostal = PersonPostalInfo{Name:contact_data.IntPostal, Address:contact_data.IntAddress}
         person_data.Birthday = contact_data.Birthday
         person_data.Email = contact_data.Emails
         person_data.Voice = contact_data.Voice
@@ -283,6 +284,34 @@ func PollReqResponse(response *EPPResult) *MsgQ {
     return msg_q
 }
 
+func RegistrarResponse(response *EPPResult) *ResDataS {
+    registrar_data, ok := response.Content.(*InfoRegistrarData)
+    if !ok {
+        glg.Error("conversion error")
+        return nil
+    }
+    registrar := &Registrar{
+        XMLNSDom:REGISTRAR_NS,
+        XMLNS:REGISTRAR_NS,
+        Handle:registrar_data.Handle,
+        IntPostal:PostalInfo{Org:registrar_data.IntPostal.String, Address:registrar_data.IntAddress},
+        LocPostal:PostalInfo{Org:registrar_data.LocPostal.String, Address:registrar_data.LocAddress},
+
+        Email:registrar_data.Emails,
+        Voice:registrar_data.Voice,
+        Fax:registrar_data.Fax,
+
+        WWW:registrar_data.WWW.String,
+        Whois:registrar_data.Whois.String,
+        
+        UpDate:FormatDatePG(registrar_data.Update_time),
+    }
+
+    registrar.Addrs = append(registrar.Addrs, registrar_data.Addrs...)
+
+    return &ResDataS{Obj:registrar}
+}
+
 func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string {
     w := &bytes.Buffer{}
 
@@ -315,6 +344,8 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
                 resp.ResData = HostResponse(response)
             case EPP_INFO_CONTACT:
                 resp.ResData = ContactResponse(response)
+            case EPP_INFO_REGISTRAR:
+                resp.ResData = RegistrarResponse(response)
 
             case EPP_CREATE_DOMAIN:
                 resp.ResData = CreateDomainResponse(response)
