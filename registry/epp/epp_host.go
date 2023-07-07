@@ -232,6 +232,11 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
             err_msg := err_addr + " already present for this host"
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_msg}}
         }
+
+        if len(host_addrs) + len(v.AddAddrs) - len(v.RemAddrs) > ctx.serv.RGconf.MaxValueList {
+            err_val := "Maximum number of IPs exceeded"
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_val}}
+        }
     }
 
     err = dbreg.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)

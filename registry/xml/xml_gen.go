@@ -182,9 +182,7 @@ func HostResponse(response *EPPResult) *ResDataS {
     for _,v := range host_data.States {
         host.States = append(host.States, ObjectState{Val:v})
     }
-    for _, ipaddr := range host_data.Addrs {
-        host.Addrs = append(host.Addrs, ipaddr)
-    }
+    host.Addrs = append(host.Addrs, host_data.Addrs...)
 
     return &ResDataS{Obj:host}
 }
@@ -309,11 +307,7 @@ func RegistrarResponse(response *EPPResult) *ResDataS {
         UpDate:FormatDatePG(registrar_data.Update_time),
     }
 
-    glg.Error(registrar.Addrs)
-
-    for _, ipaddr := range registrar_data.Addrs {
-        registrar.Addrs = append(registrar.Addrs, ipaddr)
-    }
+    registrar.Addrs = append(registrar.Addrs, registrar_data.Addrs...)
 
     return &ResDataS{Obj:registrar}
 }

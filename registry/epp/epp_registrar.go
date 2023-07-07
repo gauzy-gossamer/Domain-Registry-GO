@@ -47,6 +47,17 @@ func epp_registrar_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     return &res
 }
 
+func removeEmail(emails []string, rem_email string) []string {
+    l := len(emails)
+    for i, email := range emails {
+        if email == rem_email {
+            emails[i] = emails[l-1]
+            return emails[:l-1]
+        }
+    }
+    return emails
+}
+
 func epp_registrar_update_impl(ctx *EPPContext, v *xml.UpdateRegistrar) *EPPResult {
     registrar_handle := strings.ToUpper(v.Name)
     ctx.logger.Info("Update registrar", registrar_handle)
@@ -89,10 +100,24 @@ func epp_registrar_update_impl(ctx *EPPContext, v *xml.UpdateRegistrar) *EPPResu
 
     update_reg := registrar.NewUpdateRegistrar()
 
+    if len(v.AddEmails) > 0 || len(v.RemEmails) > 0 {
+        emails := registrar_data.Emails
+
+        for _, email := range v.RemEmails {
+            emails = removeEmail(emails, email)
+        }
+
+        emails = append(emails, v.AddEmails...)
+        if len(emails) > ctx.serv.RGconf.MaxValueList {
+            err_val := "Maximum number of emails exceeded"
+            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{err_val}}
+        }
+        update_reg.SetEmails(emails)
+    }
+
     if len(v.WWW) > 0 {
         update_reg.SetWWW(v.WWW)
     }
-
     if len(v.Whois) > 0 {
         update_reg.SetWhois(v.Whois)
     }

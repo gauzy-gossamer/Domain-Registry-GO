@@ -34,7 +34,6 @@ func (q *InfoRegistrarDB) create_info_query() string {
     query.WriteString(" , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id ")
     query.WriteString(" , upr.handle AS upd_registrar_handle ")
     query.WriteString(" , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created ")
-    query.WriteString(" , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time ")
     query.WriteString(" , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time ")
 
     query.WriteString(" FROM object_registry obr ")
@@ -84,7 +83,7 @@ func (q *InfoRegistrarDB) Exec(db *server.DBConn) (*InfoRegistrarData, error) {
                     &legaladdress, &fax, &telephone, &email, &data.WWW, &data.Whois,
                     &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,
                     &data.Create_registrar.Id, &data.Create_registrar.Handle, &data.Update_registrar.Id, &data.Update_registrar.Handle, &data.Creation_time,
-                    &data.Transfer_time, &data.Update_time)
+                    &data.Update_time)
     if err != nil {
         return nil, err
     }

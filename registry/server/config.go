@@ -38,8 +38,11 @@ type RegConfig struct {
     MaxRegistrarSessions uint
     MaxQueriesPerMinute uint
     SessionTimeout uint
+    /* minimum/maximum number of hosts per domain */
     DomainMinHosts int
     DomainMaxHosts int
+    /* maximum number of voice/fax/email values */
+    MaxValueList int
     SchemaPath string
     SchemaNs string
     GrpcPort int
@@ -81,45 +84,38 @@ func parseSection(cfg *ini.File, section_name string, set_to interface{}, params
 
     for _,  val := range params {
         key, err := section.GetKey(val.Name)
+        var kval any
         if err != nil { 
             if val.Required {
                 glg.Fatal(err)
             }
-            continue
+            /* set default value */
+            kval = val.Default
+        } else {
+            switch val.Default.(type) {
+                case int:
+                kval, err = key.Int()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case uint:
+                kval, err = key.Uint()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case bool:
+                kval, err = key.Bool()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case string:
+                kval = key.String()
+            }
         }
-        switch val.Default.(type) {
-            case int:
-                kval, err := key.Int()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-                err = setField(set_to, val.Field, kval)
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case uint:
-                kval, err := key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-                err = setField(set_to, val.Field, kval)
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case bool:
-                kval, err := key.Bool()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-                err = setField(set_to, val.Field, kval)
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case string:
-                err = setField(set_to, val.Field, key.String())
-                if err != nil {
-                    glg.Fatal(err)
-                }
+
+        err = setField(set_to, val.Field, kval)
+        if err != nil {
+            glg.Fatal(err)
         }
     }
 }
@@ -164,6 +160,7 @@ func (r *RegConfig) LoadConfig(config_path string)  {
         {"SchemaNs", "schema_ns", "", false},
         {"ChargeOperations", "epp_operations_charging", false, true},
         {"CronSchedule", "cron_schedule", "", false},
+        {"MaxValueList", "max_value_list", 15, false},
     })
 
     parseSection(cfg, "http", &r.HTTPConf, []ConfigVal {

@@ -380,6 +380,13 @@ func TestEPPHost(t *testing.T) {
     updateHost(t, eppc, non_subordinate_host, []string{"127.0.0.1"}, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
     updateHost(t, eppc, test_host, []string{}, []string{"127.0.0.1"}, EPP_OK, sessionid)
 
+    /* exceed number of allowed ips */
+    add_ips := make([]string, serv.RGconf.MaxValueList + 1)
+    for i := 0; i <= serv.RGconf.MaxValueList; i++ {
+        add_ips = append(add_ips, fmt.Sprintf("127.0.1.%v", i + 1))
+    }
+    updateHost(t, eppc, test_host, add_ips, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
+
     deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
     deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)
 

@@ -108,14 +108,16 @@ func TestEPPUpdateRegistrar(t *testing.T) {
     /* try to change info on another registrar */
     updateRegistrar(t, eppc, reg_handle2, nil, []string{"127.1.0.1"}, []string{}, EPP_AUTHORIZATION_ERR, sessionid)
 
-    updateRegistrar(t, eppc, reg_handle, nil, []string{insert_addr}, []string{}, EPP_OK, sessionid)
+    add_email := "test@mail.com"
+    update_registrar := xml.UpdateRegistrar{Name:reg_handle, AddAddrs:[]string{insert_addr}, AddEmails:[]string{add_email}}
+    updateRegistrar(t, eppc, reg_handle, &update_registrar, []string{}, []string{}, EPP_OK, sessionid)
 
     rand_string := server.GenerateRandString(8)
 
     set_www := "http://"+rand_string
     set_whois := "whois"+rand_string
 
-    update_registrar := xml.UpdateRegistrar{Name:reg_handle, WWW:set_www, Whois:set_whois}
+    update_registrar = xml.UpdateRegistrar{Name:reg_handle, WWW:set_www, Whois:set_whois, RemEmails:[]string{add_email}}
     updateRegistrar(t, eppc, reg_handle, &update_registrar, []string{}, []string{}, EPP_OK, sessionid)
 
     reg_info = infoRegistrar(t, eppc, reg_handle, EPP_OK, sessionid)
