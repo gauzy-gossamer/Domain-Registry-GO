@@ -10,6 +10,21 @@ import (
     "github.com/jackc/pgtype"
 )
 
+func infoDomain(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoDomainData {
+    info_domain := xml.InfoDomain{Name:name}
+    cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN, Sessionid:sessionid}
+    cmd.Content = &info_domain
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }
+    if retcode == EPP_OK {
+        info := epp_res.Content.(*InfoDomainData)
+        return info
+    }
+    return nil
+}
+
 func TestEPPDomain(t *testing.T) {
     serv := prepareServer()
 
@@ -28,30 +43,15 @@ func TestEPPDomain(t *testing.T) {
     eppc := epp.NewEPPContext(serv)
     test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
 
-    info_domain := xml.InfoDomain{Name:test_domain}
-    cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN}
-    cmd.Content = &info_domain
-
-    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
-        t.Error("should be auth error")
-    }
-
-    cmd.Sessionid = sessionid
-    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_OBJECT_NOT_EXISTS {
-        t.Error("should be ok")
-    }
+    _ = infoDomain(t, eppc, test_domain, EPP_AUTHENTICATION_ERR, 0)
+    _ = infoDomain(t, eppc, test_domain, EPP_OBJECT_NOT_EXISTS, sessionid)
 
     createDomain(t, eppc, test_domain, test_contact + "?err", EPP_PARAM_VALUE_POLICY, sessionid)
     createDomain(t, eppc, test_domain, test_contact, EPP_OK, sessionid)
 
     createDomain(t, eppc, test_domain, test_contact, EPP_OBJECT_EXISTS, sessionid)
 
-    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ok", epp_res.RetCode)
-    }
+    _ = infoDomain(t, eppc, test_domain, EPP_OK, sessionid)
 
     deleteObject(t, eppc, test_domain, EPP_DELETE_DOMAIN, EPP_OK, sessionid)
 
@@ -378,6 +378,7 @@ func TestEPPDomainTransfer(t *testing.T) {
     }
 
     sessionid := fakeSession(t, serv, dbconn, regid)
+    sessionid2 := fakeSession(t, serv, dbconn, regid2)
 
     eppc := epp.NewEPPContext(serv)
     test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
@@ -385,13 +386,19 @@ func TestEPPDomainTransfer(t *testing.T) {
 
     createDomain(t, eppc, test_domain, test_contact, EPP_OK, sessionid)
 
+    _ = infoDomain(t, eppc, test_domain, EPP_AUTHORIZATION_ERR, sessionid2)
+    _ = infoContact(t, eppc, test_contact, EPP_AUTHORIZATION_ERR, sessionid2)
+
     transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
     transferDomain(t, eppc, test_domain, reg_handle2, TR_QUERY, EPP_OK, sessionid)
     transferDomain(t, eppc, test_domain, reg_handle2, TR_CANCEL, EPP_OK, sessionid)
 
     transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
 
-    sessionid2 := fakeSession(t, serv, dbconn, regid2)
+    /* should be allowed with a pending transfer */
+    _ = infoDomain(t, eppc, test_domain, EPP_OK, sessionid2)
+    _ = infoContact(t, eppc, test_contact, EPP_OK, sessionid2)
+
     poll_cmd := xml.XMLCommand{CmdType:EPP_POLL_REQ, Sessionid:sessionid2}
     epp_res := eppc.ExecuteEPPCommand(context.Background(), &poll_cmd)
     /* should definitely exist */

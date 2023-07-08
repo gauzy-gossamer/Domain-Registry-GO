@@ -50,6 +50,23 @@ func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
     return &res
 }
 
+func allowInfoAccess(ctx *EPPContext, domain_data *InfoDomainData) (bool, error) {
+    if ctx.session.System {
+        return true, nil
+    }
+    if domain_data.Sponsoring_registrar.Id.Get() == ctx.session.Regid {
+        return true, nil
+    }
+    if exists, err := dbreg.CheckExistingTransferByDomain(ctx.dbconn, domain_data.Id, ctx.session.Regid); exists || err != nil {
+        if err != nil {
+            return false, err
+        }
+        return true, nil
+    }
+
+    return false, nil
+}
+
 func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
     ctx.logger.Info("Domain info", v.Name)
     domain := normalizeDomain(v.Name)
@@ -63,10 +80,11 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
-    if !ctx.session.System {
-        if domain_data.Sponsoring_registrar.Id.Get() != ctx.session.Regid {
-            return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
-        }
+    if allow, err := allowInfoAccess(ctx, domain_data); !allow || err != nil {
+	if err != nil {
+	    return &EPPResult{RetCode:EPP_FAILED}
+	}
+	return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
     }
 
     object_states, err := getObjectStates(ctx.dbconn, domain_data.Id)
