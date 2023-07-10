@@ -118,7 +118,7 @@ func GetDomainHosts(db *server.DBConn, domainid uint64) ([]HostObj, error) {
 }
 
 func GetDomainIdByName(db *server.DBConn, handle string, regid... uint) (uint64, error) {
-    domain_id, err := getObjectIdByName(db, handle, "domain", regid...)
+    domain_id, err := GetObjectIdByName(db, handle, "domain", regid...)
 
     if err != nil {
         if err == pgx.ErrNoRows {

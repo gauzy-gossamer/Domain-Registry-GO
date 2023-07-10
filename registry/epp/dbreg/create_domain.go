@@ -33,7 +33,7 @@ func (q *CreateDomainDB) SetParams(domain string, zoneid int, registrant uint64,
 
 func (q *CreateDomainDB) Exec(db *server.DBConn) (*CreateDomainResult, error) {
     createObj := NewCreateObjectDB("domain")
-    object, err := createObj.exec(db, q.domain, q.regid)
+    object, err := createObj.Exec(db, q.domain, q.regid)
 
     if err != nil {
         return nil, err

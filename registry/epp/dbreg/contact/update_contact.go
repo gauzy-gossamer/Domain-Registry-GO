@@ -1,8 +1,9 @@
-package dbreg
+package contact
 
 import (
     "strings"
     "strconv"
+    "registry/epp/dbreg"
     "registry/server"
     . "registry/epp/eppcom"
 )
@@ -110,7 +111,7 @@ func (up *UpdateContactDB) SetVerified(verified bool) *UpdateContactDB {
 }
 
 func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint) error {
-    err := LockObjectById(db, contactid, "contact")
+    err := dbreg.LockObjectById(db, contactid, "contact")
     if err != nil {
         return err
     }
@@ -124,7 +125,7 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
     }
 
     if !up.intaddress.IsNull() {
-        params = append(params, PackJson(up.intaddress.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.intaddress.Get().([]string)))
         fields = append(fields, "intaddress = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
 
@@ -134,12 +135,12 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
     }
 
     if !up.locaddress.IsNull() {
-        params = append(params, PackJson(up.locaddress.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.locaddress.Get().([]string)))
         fields = append(fields, "locaddress = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
 
     if !up.legaladdress.IsNull() {
-        params = append(params, PackJson(up.legaladdress.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.legaladdress.Get().([]string)))
         fields = append(fields, "legaladdress = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
 
@@ -149,7 +150,7 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
     }
 
     if !up.passport.IsNull() {
-        params = append(params, PackJson(up.passport.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.passport.Get().([]string)))
         fields = append(fields, "passport = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
 
@@ -159,15 +160,15 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
     }
 
     if !up.emails.IsNull() {
-        params = append(params, PackJson(up.emails.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.emails.Get().([]string)))
         fields = append(fields, "email = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
     if !up.voice.IsNull() {
-        params = append(params, PackJson(up.voice.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.voice.Get().([]string)))
         fields = append(fields, "telephone = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
     if !up.fax.IsNull() {
-        params = append(params, PackJson(up.fax.Get().([]string)))
+        params = append(params, dbreg.PackJson(up.fax.Get().([]string)))
         fields = append(fields, "fax = $" + strconv.Itoa(len(params)) + "::jsonb")
     }
     if !up.verified.IsNull() {
@@ -185,7 +186,7 @@ func (up *UpdateContactDB) Exec(db *server.DBConn, contactid uint64, regid uint)
         }
     }
 
-    err = UpdateObject(db, contactid, regid)
+    err = dbreg.UpdateObject(db, contactid, regid)
 
     return err
 }

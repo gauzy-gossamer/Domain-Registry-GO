@@ -56,6 +56,7 @@ type Domain struct {
     UpID     string   `xml:"upID,omitempty"`
     UpDate   string   `xml:"upDate,omitempty"`
     ExDate   string   `xml:"exDate"`
+    TrDate   string   `xml:"trDate,omitempty"`
 }
 
 type Host struct {
@@ -71,6 +72,7 @@ type Host struct {
     CrDate   string   `xml:"crDate"`
     UpID     string   `xml:"upID,omitempty"`
     UpDate   string   `xml:"upDate,omitempty"`
+    TrDate   string   `xml:"trDate,omitempty"`
 }
 
 type VerifiedField struct {
@@ -132,6 +134,7 @@ type Contact struct {
     CrDate   string   `xml:"crDate"`
     UpID     string   `xml:"upID,omitempty"`
     UpDate   string   `xml:"upDate,omitempty"`
+    TrDate   string   `xml:"trDate,omitempty"`
     Verified interface {}
 }
 

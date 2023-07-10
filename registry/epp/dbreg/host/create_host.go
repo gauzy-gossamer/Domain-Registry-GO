@@ -1,7 +1,8 @@
-package dbreg
+package host
 
 import (
     "registry/server"
+    "registry/epp/dbreg"
     . "registry/epp/eppcom"
 )
 
@@ -28,16 +29,15 @@ func (q *CreateHostDB) SetParams(handle string, regid uint, fqdn string, addrs [
 }
 
 func (q *CreateHostDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
-    createObj := NewCreateObjectDB("nsset")
-    create_result, err := createObj.exec(db, q.handle, q.regid)
+    createObj := dbreg.NewCreateObjectDB("nsset")
+    create_result, err := createObj.Exec(db, q.handle, q.regid)
     create_result.Name = q.fqdn
 
     if err != nil {
         return nil, err
     }
 
-    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text " +
-                    "  FROM object_registry " +
+    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text FROM object_registry " +
                     " WHERE id = $2::bigint FOR UPDATE OF object_registry", q.p_local_zone, create_result.Id)
     err = row.Scan(&create_result.Crdate)
     if err != nil {

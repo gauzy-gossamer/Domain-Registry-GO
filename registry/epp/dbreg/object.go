@@ -23,7 +23,7 @@ func (c *CreateObjectDB) setAuthInfo(authinfo string) *CreateObjectDB {
     return c
 }
 
-func (q *CreateObjectDB) exec(db *server.DBConn, handle string, regid uint) (*CreateObjectResult, error) {
+func (q *CreateObjectDB) Exec(db *server.DBConn, handle string, regid uint) (*CreateObjectResult, error) {
     object_type_id, err := getObjectTypeId(db, q.object_type)
     if err != nil {
         return nil, err
@@ -72,7 +72,7 @@ func getObjectTypeId(db *server.DBConn, object_type string) (int, error) {
     return object_type_id, err
 }
 
-func deleteObject(db *server.DBConn, object_id uint64) error {
+func DeleteObject(db *server.DBConn, object_id uint64) error {
     row := db.QueryRow("UPDATE object_registry SET erdate = now() " +
             "WHERE id = $1::integer RETURNING id", object_id)
 
@@ -104,9 +104,8 @@ func LockObjectById(db *server.DBConn, object_id uint64, object_type string) err
     return row.Scan(&locked_id)
 }
 
-func getObjectIdByName(db *server.DBConn, handle string, object_type string, regid... uint) (uint64, error) {
-    query := "SELECT obr.id FROM object_registry obr " +
-             "INNER JOIN object obj ON obj.id=obr.id " +
+func GetObjectIdByName(db *server.DBConn, handle string, object_type string, regid... uint) (uint64, error) {
+    query := "SELECT obr.id FROM object_registry obr INNER JOIN object obj ON obj.id=obr.id " +
              "WHERE obr.type = get_object_type_id($1::text) and obr.name = lower($2::text) and obr.erdate is null "
 
     var params []any

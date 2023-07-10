@@ -1,4 +1,4 @@
-package epp
+package dbreg
 
 import (
     "strings"
@@ -6,11 +6,11 @@ import (
 )
 
 type Zone struct {
-    id int
-    fqdn string
+    Id int
+    Fqdn string
 }
 
-func getDomainZone(db *server.DBConn, domain string) *Zone {
+func GetDomainZone(db *server.DBConn, domain string) *Zone {
     parts := strings.Split(domain, ".")
     zone := strings.Join(parts[1:], ".")
 
@@ -18,14 +18,14 @@ func getDomainZone(db *server.DBConn, domain string) *Zone {
                        "WHERE fqdn = $1::text", zone)
 
     zone_obj := Zone{}
-    err := row.Scan(&zone_obj.id, &zone_obj.fqdn)
+    err := row.Scan(&zone_obj.Id, &zone_obj.Fqdn)
     if err != nil {
         return nil
     }
     return &zone_obj
 }
 
-func getRegistrarZones(db *server.DBConn, regid uint) ([]string, error) {
+func GetRegistrarZones(db *server.DBConn, regid uint) ([]string, error) {
     rows, err := db.Query("SELECT fqdn FROM registrarinvoice r JOIN zone z on r.zone=z.id " +
                        "WHERE registrarid = $1::integer and " +
                        "todate is null and fromdate <= now()" , regid)
@@ -46,7 +46,7 @@ func getRegistrarZones(db *server.DBConn, regid uint) ([]string, error) {
     return zones, nil
 }
 
-func testRegistrarZoneAccess(db *server.DBConn, regid uint, zoneid int) (bool, error) {
+func TestRegistrarZoneAccess(db *server.DBConn, regid uint, zoneid int) (bool, error) {
     row := db.QueryRow("SELECT id FROM registrarinvoice " +
                        "WHERE registrarid = $1::integer and zone = $2::integer and " +
                        "todate is null and fromdate <= now()" , regid, zoneid)

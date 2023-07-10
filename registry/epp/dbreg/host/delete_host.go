@@ -1,11 +1,12 @@
-package dbreg
+package host
 
 import (
+    "registry/epp/dbreg"
     "registry/server"
 )
 
 func DeleteHost(db *server.DBConn, hostid uint64) error {
-    err := LockObjectById(db, hostid, "nsset")
+    err := dbreg.LockObjectById(db, hostid, "nsset")
     if err != nil {
         return err
     }
@@ -23,7 +24,7 @@ func DeleteHost(db *server.DBConn, hostid uint64) error {
         return err
     }
 
-    err = deleteObject(db, hostid)
+    err = dbreg.DeleteObject(db, hostid)
 
     return err
 }

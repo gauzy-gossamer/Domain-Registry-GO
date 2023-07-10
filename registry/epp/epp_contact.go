@@ -4,6 +4,7 @@ import (
     "strings"
     "registry/xml"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
 )
@@ -39,7 +40,7 @@ func epp_contact_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
 }
 
 func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool) (*InfoContactData, *ObjectStates, *EPPResult) {
-    info_db := dbreg.NewInfoContactDB()
+    info_db := contact.NewInfoContactDB()
     contact_data, err := info_db.SetLock(for_update).SetName(contact_handle).Exec(ctx.dbconn)
     if err != nil {
         if err == pgx.ErrNoRows {
@@ -47,12 +48,6 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
         }
         ctx.logger.Error(err)
         return nil, nil, &EPPResult{RetCode:EPP_FAILED}
-    }
-
-    if !ctx.session.System {
-        if contact_data.Sponsoring_registrar.Id.Get() != ctx.session.Regid {
-            return nil, nil, &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
-        }
     }
 
     if for_update {
@@ -71,12 +66,36 @@ func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool)
     return contact_data, object_states, nil
 }
 
+func allowContactInfoAccess(ctx *EPPContext, contact_data *InfoContactData) (bool, error) {
+    if ctx.session.System {
+        return true, nil
+    }
+    if contact_data.Sponsoring_registrar.Id.Get() == ctx.session.Regid {
+        return true, nil
+    }
+    if exists, err := dbreg.CheckExistingTransferByContact(ctx.dbconn, contact_data.Id, ctx.session.Regid); exists || err != nil {
+        if err != nil {
+            return false, err
+        }
+        return true, nil
+    }
+
+    return false, nil
+}
+
 func epp_contact_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     ctx.logger.Info("Info contact", v.Name)
     contact_handle := strings.ToLower(v.Name)
     contact_data, object_states, cmd := get_contact_object(ctx, contact_handle, false)
     if cmd != nil {
         return cmd
+    }
+
+    if allow, err := allowContactInfoAccess(ctx, contact_data); !allow || err != nil {
+	if err != nil {
+            return &EPPResult{RetCode:EPP_FAILED}
+	}
+	return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
     }
 
     contact_data.States = object_states.copyObjectStates()
@@ -115,7 +134,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
     }
     defer ctx.dbconn.Rollback()
 
-    create_contact := dbreg.NewCreateContactDB()
+    create_contact := contact.NewCreateContactDB()
     create_contact.SetIntPostal(v.Fields.IntPostal)
     create_contact.SetIntAddress(v.Fields.IntAddress)
     create_contact.SetLocPostal(v.Fields.LocPostal)
@@ -179,6 +198,9 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
     }
 
     if !ctx.session.System {
+        if contact_data.Sponsoring_registrar.Id.Get() != ctx.session.Regid {
+            return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
+        }
         if object_states.hasState(serverUpdateProhibited) ||
            object_states.hasState(clientUpdateProhibited) ||
            object_states.hasState(pendingDelete) {
@@ -190,7 +212,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"incorrect contact type"}}
     }
 
-    update_contact := dbreg.NewUpdateContactDB()
+    update_contact := contact.NewUpdateContactDB()
     if len(v.Fields.IntPostal) > 0 {
         update_contact.SetIntPostal(v.Fields.IntPostal)
     }
@@ -256,6 +278,9 @@ func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     }
 
     if !ctx.session.System {
+        if contact_data.Sponsoring_registrar.Id.Get() != ctx.session.Regid {
+            return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
+        }
         if object_states.hasState(serverDeleteProhibited) ||
            object_states.hasState(clientDeleteProhibited) ||
            object_states.hasState(pendingDelete) {
@@ -273,7 +298,7 @@ func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     }
     defer ctx.dbconn.Rollback()
 
-    err = dbreg.DeleteContact(ctx.dbconn, contact_data.Id)
+    err = contact.DeleteContact(ctx.dbconn, contact_data.Id)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}

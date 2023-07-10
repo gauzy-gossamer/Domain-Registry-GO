@@ -23,7 +23,7 @@ func DeleteDomain(db *server.DBConn, domainid uint64) error {
         return err
     }
 
-    err = deleteObject(db, domainid)
+    err = DeleteObject(db, domainid)
 
     return err
 }

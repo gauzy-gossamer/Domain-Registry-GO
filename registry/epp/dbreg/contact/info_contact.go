@@ -1,9 +1,10 @@
-package dbreg
+package contact
 
 import (
     "strings"
 
     "registry/server"
+    "registry/epp/dbreg"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
     "github.com/jackc/pgtype"
@@ -101,26 +102,40 @@ func (q *InfoContactDB) Exec(db *server.DBConn) (*InfoContactData, error) {
         data.TaxNumbers = taxnumbers.String
     }
 
-    data.Passport = UnpackJson(passport)
-    data.LocAddress = UnpackJson(locaddress)
-    data.IntAddress = UnpackJson(intaddress)
-    data.LegalAddress = UnpackJson(legaladdress)
+    data.Passport = dbreg.UnpackJson(passport)
+    data.LocAddress = dbreg.UnpackJson(locaddress)
+    data.IntAddress = dbreg.UnpackJson(intaddress)
+    data.LegalAddress = dbreg.UnpackJson(legaladdress)
 
-    data.Emails = UnpackJson(email)
-    data.Voice = UnpackJson(telephone)
-    data.Fax = UnpackJson(fax)
+    data.Emails = dbreg.UnpackJson(email)
+    data.Voice = dbreg.UnpackJson(telephone)
+    data.Fax = dbreg.UnpackJson(fax)
 
     return &data, nil
 }
 
 func GetContactIdByHandle(db *server.DBConn, handle string, regid... uint) (uint64, error) {
-    contact_id, err := getObjectIdByName(db, handle, "contact", regid...)
+    contact_id, err := dbreg.GetObjectIdByName(db, handle, "contact", regid...)
 
     if err != nil {
         if err == pgx.ErrNoRows {
-            return 0, &ParamError{Val:"contact " + handle + " doesn't exist"}
+            return 0, &dbreg.ParamError{Val:"contact " + handle + " doesn't exist"}
         }
     }
 
     return contact_id, err
+}
+
+func GetNumberOfLinkedDomains(db *server.DBConn, contactid uint64) (int, error) {
+    query := "SELECT count(*) FROM domain WHERE registrant = $1::bigint"
+
+    row := db.QueryRow(query, contactid)
+
+    var domains int
+    err := row.Scan(&domains)
+    if err != nil {
+        return 0, err 
+    }   
+
+    return domains, err 
 }
