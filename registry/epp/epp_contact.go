@@ -4,6 +4,7 @@ import (
     "strings"
     "registry/xml"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
 )
@@ -39,7 +40,7 @@ func epp_contact_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
 }
 
 func get_contact_object(ctx *EPPContext, contact_handle string, for_update bool) (*InfoContactData, *ObjectStates, *EPPResult) {
-    info_db := dbreg.NewInfoContactDB()
+    info_db := contact.NewInfoContactDB()
     contact_data, err := info_db.SetLock(for_update).SetName(contact_handle).Exec(ctx.dbconn)
     if err != nil {
         if err == pgx.ErrNoRows {
@@ -133,7 +134,7 @@ func epp_contact_create_impl(ctx *EPPContext, v *xml.CreateContact) (*EPPResult)
     }
     defer ctx.dbconn.Rollback()
 
-    create_contact := dbreg.NewCreateContactDB()
+    create_contact := contact.NewCreateContactDB()
     create_contact.SetIntPostal(v.Fields.IntPostal)
     create_contact.SetIntAddress(v.Fields.IntAddress)
     create_contact.SetLocPostal(v.Fields.LocPostal)
@@ -211,7 +212,7 @@ func epp_contact_update_impl(ctx *EPPContext, v *xml.UpdateContact) (*EPPResult)
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"incorrect contact type"}}
     }
 
-    update_contact := dbreg.NewUpdateContactDB()
+    update_contact := contact.NewUpdateContactDB()
     if len(v.Fields.IntPostal) > 0 {
         update_contact.SetIntPostal(v.Fields.IntPostal)
     }
@@ -297,7 +298,7 @@ func epp_contact_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     }
     defer ctx.dbconn.Rollback()
 
-    err = dbreg.DeleteContact(ctx.dbconn, contact_data.Id)
+    err = contact.DeleteContact(ctx.dbconn, contact_data.Id)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}

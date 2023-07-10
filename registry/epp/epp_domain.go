@@ -5,6 +5,7 @@ import (
     "fmt"
     "registry/xml"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
 )
@@ -22,7 +23,7 @@ func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
             continue
         }
 
-        zone := getDomainZone(ctx.dbconn, domain)
+        zone := dbreg.GetDomainZone(ctx.dbconn, domain)
 
         if zone == nil {
             check_results = append(check_results, CheckResult{Name:domain, Result:CD_NOT_APPLICABLE})
@@ -35,7 +36,7 @@ func epp_domain_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
             check_results = append(check_results, CheckResult{Name:domain, Result:CD_REGISTERED})
             continue
         }
-        if ok, err := domain_checker.IsDomainRegistrable(ctx.dbconn, domain, zone.id); !ok {
+        if ok, err := domain_checker.IsDomainRegistrable(ctx.dbconn, domain, zone.Id); !ok {
             if err != nil {
                 ctx.logger.Error(err)
             }
@@ -117,14 +118,14 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
         return &EPPResult{RetCode:EPP_PARAM_ERR}
     }
 
-    zone := getDomainZone(ctx.dbconn, domain)
+    zone := dbreg.GetDomainZone(ctx.dbconn, domain)
 
     if zone == nil {
         return &EPPResult{RetCode:2306}
     }
 
     if !ctx.session.System {
-        if ok, err := testRegistrarZoneAccess(ctx.dbconn, ctx.session.Regid, zone.id); !ok || err != nil {
+        if ok, err := dbreg.TestRegistrarZoneAccess(ctx.dbconn, ctx.session.Regid, zone.Id); !ok || err != nil {
             if err != nil {
                 ctx.logger.Error(err)
                 return &EPPResult{RetCode:EPP_FAILED}
@@ -139,14 +140,14 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
         }
         return &EPPResult{RetCode:EPP_OBJECT_EXISTS}
     }
-    if ok, err := NewDomainChecker().IsDomainRegistrable(ctx.dbconn, domain, zone.id); !ok {
+    if ok, err := NewDomainChecker().IsDomainRegistrable(ctx.dbconn, domain, zone.Id); !ok {
         if err != nil {
             ctx.logger.Error(err)
         }
         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
     }
 
-    registrant, err := dbreg.GetContactIdByHandle(ctx.dbconn, v.Registrant, ctx.session.Regid)
+    registrant, err := contact.GetContactIdByHandle(ctx.dbconn, v.Registrant, ctx.session.Regid)
     if err != nil {
         if perr, ok := err.(*dbreg.ParamError); ok {
             return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
@@ -179,14 +180,14 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
     defer ctx.dbconn.Rollback()
 
     create_domain := dbreg.NewCreateDomainDB()
-    result, err := create_domain.SetParams(domain, zone.id, registrant, ctx.session.Regid, v.Description, host_objects).Exec(ctx.dbconn)
+    result, err := create_domain.SetParams(domain, zone.Id, registrant, ctx.session.Regid, v.Description, host_objects).Exec(ctx.dbconn)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
     if ctx.serv.RGconf.ChargeOperations {
-        err = dbreg.ChargeCreateOp(ctx.dbconn, result.Id, ctx.session.Regid, zone.id, result.Crdate)
+        err = dbreg.ChargeCreateOp(ctx.dbconn, result.Id, ctx.session.Regid, zone.Id, result.Crdate)
         if err != nil {
             if _, ok := err.(*dbreg.BillingFailure); ok {
                 return &EPPResult{RetCode:EPP_BILLING_FAILURE}
@@ -348,7 +349,7 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
         update_domain.SetAddHosts(add_hosts).SetRemHosts(rem_hosts)
     }
     if v.Registrant != "" {
-        registrant, err := dbreg.GetContactIdByHandle(ctx.dbconn, v.Registrant, ctx.session.Regid)
+        registrant, err := contact.GetContactIdByHandle(ctx.dbconn, v.Registrant, ctx.session.Regid)
         if err != nil {
             if perr, ok := err.(*dbreg.ParamError); ok {
                 return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
@@ -476,7 +477,7 @@ func deleteUnlinkedContacts(ctx *EPPContext, registrant uint64) error {
         return err
     }
     if !object_states.hasState(stateLinked) {
-        err = dbreg.DeleteContact(ctx.dbconn, registrant)
+        err = contact.DeleteContact(ctx.dbconn, registrant)
         if err != nil {
             return err
         }

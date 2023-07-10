@@ -1,7 +1,8 @@
-package dbreg
+package contact
 
 import (
     "registry/server"
+    "registry/epp/dbreg"
     . "registry/epp/eppcom"
 )
 
@@ -102,16 +103,15 @@ func (q *CreateContactDB) SetParams(handle string, regid uint, contact_type int)
 }
 
 func (q *CreateContactDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
-    createObj := NewCreateObjectDB("contact")
-    create_result, err := createObj.exec(db, q.handle, q.regid)
+    createObj := dbreg.NewCreateObjectDB("contact")
+    create_result, err := createObj.Exec(db, q.handle, q.regid)
 
     if err != nil {
         return nil, err
     }
 
-    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text " +
-                    "  FROM object_registry " +
-                    " WHERE id = $2::bigint FOR UPDATE OF object_registry", q.p_local_zone, create_result.Id)
+    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text FROM object_registry " +
+                       " WHERE id = $2::bigint FOR UPDATE OF object_registry", q.p_local_zone, create_result.Id)
     err = row.Scan(&create_result.Crdate)
     if err != nil {
         return nil, err
@@ -122,21 +122,21 @@ func (q *CreateContactDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
     vals := "VALUES($1::integer, $2::integer, $3::jsonb, $4::jsonb, $5::text, $6::jsonb, $7::text, $8::jsonb "
     params = append(params, create_result.Id)
     params = append(params, q.contact_type)
-    params = append(params, PackJson(q.emails))
-    params = append(params, PackJson(q.voice))
+    params = append(params, dbreg.PackJson(q.emails))
+    params = append(params, dbreg.PackJson(q.voice))
     params = append(params, q.intpostal)
-    params = append(params, PackJson(q.intaddress))
+    params = append(params, dbreg.PackJson(q.intaddress))
     params = append(params, q.locpostal)
-    params = append(params, PackJson(q.locaddress))
+    params = append(params, dbreg.PackJson(q.locaddress))
 
     if q.contact_type == CONTACT_ORG {
         params = append(params, q.taxnumbers)
-        params = append(params, PackJson(q.legaladdress))
-        params = append(params, PackJson(q.fax))
+        params = append(params, dbreg.PackJson(q.legaladdress))
+        params = append(params, dbreg.PackJson(q.fax))
         cols += ", vat, legaladdress, fax)"
         vals += ", $9::text, $10::jsonb, $11::jsonb)"
     } else {
-        params = append(params, PackJson(q.passport))
+        params = append(params, dbreg.PackJson(q.passport))
         params = append(params, q.birthday)
         cols += ", passport, birthday)"
         vals += ", $9::jsonb, $10::date)"

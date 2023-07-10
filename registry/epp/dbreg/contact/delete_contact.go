@@ -1,11 +1,12 @@
-package dbreg
+package contact
 
 import (
     "registry/server"
+    "registry/epp/dbreg"
 )
 
 func DeleteContact(db *server.DBConn, contactid uint64) error {
-    err := LockObjectById(db, contactid, "contact")
+    err := dbreg.LockObjectById(db, contactid, "contact")
     if err != nil {
         return err
     }
@@ -18,7 +19,7 @@ func DeleteContact(db *server.DBConn, contactid uint64) error {
         return err
     }
 
-    err = deleteObject(db, contactid)
+    err = dbreg.DeleteObject(db, contactid)
 
     return err
 }

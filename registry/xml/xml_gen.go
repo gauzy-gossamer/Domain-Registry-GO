@@ -112,6 +112,7 @@ func DomainResponse(response *EPPResult) *ResDataS {
         UpDate:FormatDatePG(domain_data.Update_time),
         CrDate:FormatDatePG(domain_data.Creation_time),
         ExDate:FormatDatePG(domain_data.Expiration_date),
+        TrDate:FormatDatePG(domain_data.Transfer_time),
         Description:domain_data.Description,
     }
     if len(domain_data.Hosts) > 0 {
@@ -177,6 +178,7 @@ func HostResponse(response *EPPResult) *ResDataS {
         CrID:host_data.Create_registrar.Handle.String,
         UpID:host_data.Update_registrar.Handle.String,
         UpDate:FormatDatePG(host_data.Update_time),
+        TrDate:FormatDatePG(host_data.Transfer_time),
         CrDate:FormatDatePG(host_data.Creation_time),
     }
     for _,v := range host_data.States {
@@ -218,6 +220,7 @@ func ContactResponse(response *EPPResult) *ResDataS {
         UpID:contact_data.Update_registrar.Handle.String,
         UpDate:FormatDatePG(contact_data.Update_time),
         CrDate:FormatDatePG(contact_data.Creation_time),
+        TrDate:FormatDatePG(contact_data.Transfer_time),
     }
 
     if contact_data.ContactType == CONTACT_ORG {

@@ -23,7 +23,7 @@ func DeleteHost(db *server.DBConn, hostid uint64) error {
         return err
     }
 
-    err = deleteObject(db, hostid)
+    err = DeleteObject(db, hostid)
 
     return err
 }

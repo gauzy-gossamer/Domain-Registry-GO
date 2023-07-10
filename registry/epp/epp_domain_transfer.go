@@ -2,7 +2,9 @@ package epp
 
 import (
     "registry/xml"
+    "registry/server"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     "registry/epp/dbreg/registrar"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
@@ -60,8 +62,8 @@ func query_transfer_object(ctx *EPPContext, domain string, v *xml.TransferDomain
 func cancel_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDomain) *EPPResult {
     domain_data, _, cmd := get_domain_obj(ctx, domain, false)
     if cmd != nil {
-        return cmd
-    }
+        return cmd 
+    }   
 
     find_transfer := dbreg.FindTransferRequest{Domainid:domain_data.Id, ActiveOnly:true}
     transfer_obj, err := find_transfer.SetLock(true).Exec(ctx.dbconn)
@@ -172,63 +174,124 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     return &res
 }
 
+/* generate new handle when copying contacts */
+func generateNewContactHandle(ctx *EPPContext) (string, error) {
+    for {
+        contact_handle := "cid-" + server.GenerateRandString(8)
+        avail, err := isContactAvailable(ctx.dbconn, contact_handle)
+        if err != nil {
+            return "", err
+        }
+        if avail {
+            return contact_handle, nil
+        }
+    }
+}
+
+/* transfer or copy contacts & hosts linked to domain */
+func transferDependableObjects(ctx *EPPContext, domain_data *InfoDomainData) error {
+    new_contact, err := generateNewContactHandle(ctx)
+    if err != nil {
+        return err
+    }
+
+    domains_n, err := contact.GetNumberOfLinkedDomains(ctx.dbconn, domain_data.Registrant.Id)
+    if err != nil {
+        return err
+    }
+
+    ctx.logger.Error("number of linked domains", domains_n)
+    /* if it's the only linked domain, then we can transfer contact to new registrar */
+    if domains_n > 1 {
+        err = contact.CopyContact(ctx.dbconn, domain_data.Registrant.Id, new_contact, ctx.session.Regid)
+        if err != nil {
+            return err
+        }
+    } else {
+        err = contact.TransferContact(ctx.dbconn, domain_data.Registrant.Id, ctx.session.Regid)
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
 func approve_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDomain) *EPPResult {
-    /* call info domain with a for update lock instead */
-    domain_id, err := dbreg.GetDomainIdByName(ctx.dbconn, domain)
-    if err != nil {
-        if perr, ok := err.(*dbreg.ParamError); ok {
-            return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Val}}
+    var err error
+    var res *EPPResult
+    /* use serializable transaction to manage possible collisions with other transactions */
+    ctx.dbconn.RetryTx(func() error {
+        err = nil
+        if err = ctx.dbconn.BeginSerializable(); err != nil {
+            ctx.logger.Error(err)
+            res = &EPPResult{RetCode:EPP_FAILED}
+            return nil
         }
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
+        defer ctx.dbconn.Rollback()
 
-    find_transfer := dbreg.FindTransferRequest{Domainid:domain_id, ActiveOnly:true}
-    transfer_obj, err := find_transfer.SetLock(true).Exec(ctx.dbconn)
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
+        info_db := dbreg.NewInfoDomainDB()
+        domain_data, err := info_db.Set_fqdn(domain).Exec(ctx.dbconn)
+        if err != nil {
+            if err == pgx.ErrNoRows {
+                res = &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
+                return nil
+            }
+            return err
+        }   
+        domain_id := domain_data.Id
+
+        find_transfer := dbreg.FindTransferRequest{Domainid:domain_id, ActiveOnly:true}
+        transfer_obj, err := find_transfer.SetLock(true).Exec(ctx.dbconn)
+        if err != nil {
+            if err == pgx.ErrNoRows {
+                res = &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
+                return nil
+            }
+            return err
         }
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
 
-    if transfer_obj.AcID.Id.Get() != ctx.session.Regid {
-        return &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
-    }
+        if transfer_obj.AcID.Id.Get() != ctx.session.Regid {
+            res = &EPPResult{RetCode:EPP_AUTHORIZATION_ERR}
+            return nil
+        }
 
-    if err = ctx.dbconn.Begin(); err != nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-    defer ctx.dbconn.Rollback()
+        err = dbreg.TransferDomain(ctx.dbconn, domain_id, ctx.session.Regid)
+        if err != nil {
+            return err
+        }
 
-    /* this is an incomplete transfer, we also need to transfer or copy linked objects (contact, hosts) */
-    err = dbreg.TransferDomain(ctx.dbconn, domain_id, ctx.session.Regid)
+        err = transferDependableObjects(ctx, domain_data)
+        if err != nil {
+            return err
+        }
+
+        err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientApproved, ctx.session.Regid, transfer_obj.ReID.Id.Get())
+        if err != nil {
+            return err
+        }
+
+        if err = cancel_pending_transfer(ctx, domain_id); err != nil {
+            return err
+        }
+
+        if err = ctx.dbconn.Commit(); err != nil {
+            return err
+        }
+
+        return nil
+    })
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
-
-    err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientApproved, ctx.session.Regid, transfer_obj.ReID.Id.Get())
-    if err != nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
+    if res != nil {
+        return res
     }
 
-    if err = cancel_pending_transfer(ctx, domain_id); err != nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-
-    if err = ctx.dbconn.Commit(); err !=nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-
-    var res = EPPResult{RetCode:EPP_OK}
+    res = &EPPResult{RetCode:EPP_OK}
 //    res.Content = transfer_obj
-    return &res
+    return res
 }
 
 func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDomain) *EPPResult {
@@ -256,7 +319,7 @@ func create_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     }
 
     /* acquirer registrar doesn't have permissions for the zone in which domain is registered */
-    if ok, err := testRegistrarZoneAccess(ctx.dbconn, acquirer.Id.Get(), domain_data.ZoneId); !ok || err != nil {
+    if ok, err := dbreg.TestRegistrarZoneAccess(ctx.dbconn, acquirer.Id.Get(), domain_data.ZoneId); !ok || err != nil {
         if err != nil {
             ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}

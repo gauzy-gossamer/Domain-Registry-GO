@@ -121,7 +121,7 @@ func isDomainAvailable(db *server.DBConn, domain string) (bool, error) {
 /* check if the host is subordinate to any of the zones available to registrar */
 func isHostSubordinate(db *server.DBConn, host string, regid uint) (bool, error) {
     host = strings.ToLower(host)
-    zones, err := getRegistrarZones(db, regid)
+    zones, err := dbreg.GetRegistrarZones(db, regid)
     if err != nil {
         return false, err
     }

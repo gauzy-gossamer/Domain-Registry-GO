@@ -29,7 +29,7 @@ func (q *CreateHostDB) SetParams(handle string, regid uint, fqdn string, addrs [
 
 func (q *CreateHostDB) Exec(db *server.DBConn) (*CreateObjectResult, error) {
     createObj := NewCreateObjectDB("nsset")
-    create_result, err := createObj.exec(db, q.handle, q.regid)
+    create_result, err := createObj.Exec(db, q.handle, q.regid)
     create_result.Name = q.fqdn
 
     if err != nil {
