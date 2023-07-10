@@ -6,6 +6,7 @@ import (
     "registry/xml"
     "registry/epp/dbreg"
     "registry/epp/dbreg/contact"
+    hostdb "registry/epp/dbreg/host"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
 )
@@ -497,7 +498,7 @@ func deleteUnlinkedHosts(ctx *EPPContext, hosts []dbreg.HostObj) error {
             return err
         }
         if !object_states.hasState(stateLinked) {
-            err = dbreg.DeleteHost(ctx.dbconn, host.Id)
+            err = hostdb.DeleteHost(ctx.dbconn, host.Id)
             if err != nil {
                 return err
             }

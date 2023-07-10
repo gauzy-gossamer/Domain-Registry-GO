@@ -1,4 +1,4 @@
-package dbreg
+package host
 
 import (
     "strings"
@@ -21,40 +21,41 @@ func NewInfoHostDB() InfoHostDB {
 }
 
 func (q *InfoHostDB) create_info_query() string {
-    info_host_query := "SELECT obr.id AS id " +
-        " , obr.roid AS roid , obr.name AS fqdn " +
-        " , obj.clid AS registrar_id " +
-        " , clr.handle AS registrar_handle, obr.crid AS cr_registrar_id " +
-        " , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id " +
-        " , upr.handle AS upd_registrar_handle " +
-        " , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created " +
-        " , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time " +
-        " , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time " /*+
+    var query strings.Builder
+    query.WriteString("SELECT obr.id AS id ")
+    query.WriteString(" , obr.roid AS roid , obr.name AS fqdn ")
+    query.WriteString(" , obj.clid AS registrar_id ")
+    query.WriteString(" , clr.handle AS registrar_handle, obr.crid AS cr_registrar_id ")
+    query.WriteString(" , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id ")
+    query.WriteString(" , upr.handle AS upd_registrar_handle ")
+    query.WriteString(" , (obr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created ")
+    query.WriteString(" , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time ")
+    query.WriteString(" , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time ") /*+
         " , obj.authinfopw " +
         " , (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamp AS utc_timestamp " +
         " , (CURRENT_TIMESTAMP AT TIME ZONE '" + q.p_local_zone  +"')::timestamp AS local_timestamp " */
 
-    info_host_query += " FROM object_registry obr " +
-                         " JOIN object obj ON obj.id = obr.id " +
-                         " JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = obr.crid "
+    query.WriteString(" FROM object_registry obr ")
+    query.WriteString(" JOIN object obj ON obj.id = obr.id ")
+    query.WriteString(" JOIN registrar clr ON clr.id = obj.clid JOIN registrar crr ON crr.id = obr.crid ")
 
-    info_host_query += " LEFT JOIN registrar upr ON upr.id = obj.upid "
+    query.WriteString(" LEFT JOIN registrar upr ON upr.id = obj.upid ")
 
-    info_host_query += " WHERE obr.type = get_object_type_id('nsset'::text) "
+    query.WriteString(" WHERE obr.type = get_object_type_id('nsset'::text) ")
 
     if _, ok := q.params["fqdn"]; ok {
-        info_host_query += "and obr.name = $1"
+        query.WriteString("and obr.name = $1")
     } else {
-        info_host_query += "and obr.id = $1"
+        query.WriteString("and obr.id = $1")
     }
 
     if q.lock_ {
-        info_host_query += " FOR UPDATE of obr "
+        query.WriteString(" FOR UPDATE of obr ")
     } else {
-        info_host_query += " FOR SHARE of obr "
+        query.WriteString(" FOR SHARE of obr ")
     }
 
-    return info_host_query
+    return query.String()
 }
 
 func (q *InfoHostDB) SetLock(lock bool) *InfoHostDB {
@@ -104,4 +105,18 @@ func GetHostIPAddrs(db *server.DBConn, hostid uint64) ([]string, error) {
     }
 
     return ipaddresses, nil
+}
+
+func GetNumberOfLinkedDomains(db *server.DBConn, hostid uint64) (int, error) {
+    query := "SELECT count(distinct domainid) FROM domain_host_map WHERE hostid = $1::bigint"
+
+    row := db.QueryRow(query, hostid)
+
+    var domains int 
+    err := row.Scan(&domains)
+    if err != nil {
+        return 0, err 
+    }   
+
+    return domains, err 
 }

@@ -1,11 +1,12 @@
-package dbreg
+package host
 
 import (
+    "registry/epp/dbreg"
     "registry/server"
 )
 
 func UpdateHost(db *server.DBConn, hostid uint64, regid uint, add_addrs []string, rem_addrs []string) error {
-    err := LockObjectById(db, hostid, "nsset")
+    err := dbreg.LockObjectById(db, hostid, "nsset")
     if err != nil {
         return err
     }
@@ -28,7 +29,7 @@ func UpdateHost(db *server.DBConn, hostid uint64, regid uint, add_addrs []string
         }
     }
 
-    err = UpdateObject(db, hostid, regid)
+    err = dbreg.UpdateObject(db, hostid, regid)
 
     return err
 }

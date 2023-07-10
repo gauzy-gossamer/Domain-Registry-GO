@@ -5,6 +5,7 @@ import (
     "strings"
     "registry/xml"
     "registry/epp/dbreg"
+    "registry/epp/dbreg/host"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
 )
@@ -44,7 +45,7 @@ func epp_host_check_impl(ctx *EPPContext, v *xml.CheckObject) (*EPPResult) {
 }
 
 func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*InfoHostData, *ObjectStates, *EPPResult) {
-    info_db := dbreg.NewInfoHostDB()
+    info_db := host.NewInfoHostDB()
     host_data, err := info_db.SetLock(for_update).Set_fqdn(host_handle).Exec(ctx.dbconn)
     if err != nil {
         if err == pgx.ErrNoRows {
@@ -88,7 +89,7 @@ func epp_host_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     host_data.States = object_states.copyObjectStates()
 
     var err error
-    host_data.Addrs, err = dbreg.GetHostIPAddrs(ctx.dbconn, host_data.Id)
+    host_data.Addrs, err = host.GetHostIPAddrs(ctx.dbconn, host_data.Id)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
@@ -138,7 +139,7 @@ func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
     }
     defer ctx.dbconn.Rollback()
 
-    create_host := dbreg.NewCreateHostDB()
+    create_host := host.NewCreateHostDB()
     create_result, err := create_host.SetParams(host_handle, ctx.session.Regid, strings.ToLower(host_name), v.Addr).Exec(ctx.dbconn)
     if err != nil {
         ctx.logger.Error(err)
@@ -215,7 +216,7 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
     }
 
     if len(v.RemAddrs) > 0 {
-        host_addrs, err := dbreg.GetHostIPAddrs(ctx.dbconn, host_data.Id)
+        host_addrs, err := host.GetHostIPAddrs(ctx.dbconn, host_data.Id)
         if err != nil {
             ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
@@ -239,7 +240,7 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    err = dbreg.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
+    err = host.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
@@ -281,7 +282,7 @@ func epp_host_delete_impl(ctx *EPPContext, v *xml.DeleteObject) *EPPResult {
     }
     defer ctx.dbconn.Rollback()
 
-    err = dbreg.DeleteHost(ctx.dbconn, host_data.Id)
+    err = host.DeleteHost(ctx.dbconn, host_data.Id)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}

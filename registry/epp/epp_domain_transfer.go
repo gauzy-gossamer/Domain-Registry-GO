@@ -5,6 +5,7 @@ import (
     "registry/server"
     "registry/epp/dbreg"
     "registry/epp/dbreg/contact"
+    "registry/epp/dbreg/host"
     "registry/epp/dbreg/registrar"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
@@ -72,7 +73,7 @@ func cancel_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
             return &EPPResult{RetCode:EPP_OBJECT_NOT_EXISTS}
         }
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if transfer_obj.ReID.Id.Get() != ctx.session.Regid {
@@ -96,7 +97,7 @@ func cancel_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
-    if err = ctx.dbconn.Commit(); err !=nil {
+    if err = ctx.dbconn.Commit(); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
@@ -148,7 +149,7 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     err = dbreg.ChangeTransferRequestState(ctx.dbconn, transfer_obj.Id, dbreg.TrClientRejected, ctx.session.Regid, transfer_obj.ReID.Id.Get())
     if err != nil {
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
 
     if err = cancel_pending_transfer(ctx, domain_id); err != nil {
@@ -165,7 +166,7 @@ func reject_transfer_request(ctx *EPPContext, domain string, v *xml.TransferDoma
     transfer_obj, err = find_transfer.Exec(ctx.dbconn)
     if err != nil {
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode:EPP_FAILED}
     }
     transfer_obj.Domain = domain
 
@@ -200,7 +201,6 @@ func transferDependableObjects(ctx *EPPContext, domain_data *InfoDomainData) err
         return err
     }
 
-    ctx.logger.Error("number of linked domains", domains_n)
     /* if it's the only linked domain, then we can transfer contact to new registrar */
     if domains_n > 1 {
         err = contact.CopyContact(ctx.dbconn, domain_data.Registrant.Id, new_contact, ctx.session.Regid)
@@ -211,6 +211,40 @@ func transferDependableObjects(ctx *EPPContext, domain_data *InfoDomainData) err
         err = contact.TransferContact(ctx.dbconn, domain_data.Registrant.Id, ctx.session.Regid)
         if err != nil {
             return err
+        }
+    }
+
+    domain_hosts, err := dbreg.GetDomainHosts(ctx.dbconn, domain_data.Id)
+    if err != nil {
+        return err
+    }
+
+    for _, host_obj := range domain_hosts {
+        /* check if host already registered for this registrar */
+        host_name := normalizeDomainUpper(host_obj.Fqdn)
+        host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
+        _, err = dbreg.GetHostObject(ctx.dbconn, host_handle, ctx.session.Regid)
+        if err == nil {
+            continue
+        } else if err != pgx.ErrNoRows {
+            return err
+        }
+
+        /* if host isn't registered, either copy or transfer it */
+        domains_n, err = host.GetNumberOfLinkedDomains(ctx.dbconn, host_obj.Id)
+        if err != nil {
+            return err
+        }
+        if domains_n == 1 {
+            err = host.TransferHost(ctx.dbconn, host_obj.Id, host_handle, ctx.session.Regid)
+            if err != nil {
+                return err
+            }
+        } else {
+            err = host.CopyHost(ctx.dbconn, host_obj.Id, host_handle, ctx.session.Regid)
+            if err != nil {
+                return err
+            }   
         }
     }
 
