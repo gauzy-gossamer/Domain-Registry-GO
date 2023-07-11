@@ -18,7 +18,7 @@ type registryServer struct {
     mainServer *server.Server
 }
 
-func newServer(server *server.Server) *registryServer {
+func NewServer(server *server.Server) *registryServer {
     s := &registryServer{}
     s.mainServer = server
     return s
@@ -160,7 +160,7 @@ func StartgRPCServer(serv *server.Server) {
 
     var opts []grpc.ServerOption
     grpcServer := grpc.NewServer(opts...)
-    RegisterRegistryServer(grpcServer, newServer(serv))
+    RegisterRegistryServer(grpcServer, NewServer(serv))
     logger.Info("running gRPC at ", server_addr)
     err = grpcServer.Serve(lis)
     if err != nil {
