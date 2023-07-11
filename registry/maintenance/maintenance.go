@@ -8,7 +8,7 @@ import (
     "github.com/robfig/cron"
 )
 
-func finishExpiredTransferRequests(dbconn *server.DBConn) error {
+func FinishExpiredTransferRequests(serv *server.Server, logger server.Logger, dbconn *server.DBConn) error {
     rows, err:= dbconn.Query("SELECT id, registrar_id, acquirer_id FROM epp_transfer_request WHERE status=$1::integer and acdate < now();", dbreg.TrPending)
     if err != nil {
         return err
@@ -22,7 +22,13 @@ func finishExpiredTransferRequests(dbconn *server.DBConn) error {
             return err
         }
 
-        err = dbreg.ChangeTransferRequestState(dbconn, trid, dbreg.TrServerCancelled, regid, regid)
+        dbconn2, err := server.AcquireConn(serv.Pool, logger)
+        if err != nil {
+            return err
+        }
+        defer dbconn2.Close()
+
+        err = dbreg.ChangeTransferRequestState(dbconn2, trid, dbreg.TrServerCancelled, regid, regid)
         if err != nil {
             return err
         }
@@ -32,11 +38,6 @@ func finishExpiredTransferRequests(dbconn *server.DBConn) error {
 }
 
 func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *server.DBConn) error {
-    dbconn2, err := server.AcquireConn(serv.Pool, logger)
-    if err != nil {
-        return err
-    }
-    defer dbconn2.Close()
     // for each reagistrar and zone count credit from advance invoices.
     // if credit is lower than limit and last poll message for this
     // registrar and zone is older than last advance invoice,
@@ -68,6 +69,12 @@ func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *
         if err != nil {
             return err
         }
+
+        dbconn2, err := server.AcquireConn(serv.Pool, logger)
+        if err != nil {
+            return err
+        }
+        defer dbconn2.Close()
         err = dbconn2.Begin()
         if err != nil {
             return err
@@ -114,7 +121,7 @@ func Maintenance(serv *server.Server) {
             return
         }
 
-        if err = finishExpiredTransferRequests(dbconn); err != nil {
+        if err = FinishExpiredTransferRequests(serv, logger, dbconn); err != nil {
             logger.Error(err)
         }
 

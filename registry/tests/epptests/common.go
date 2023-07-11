@@ -7,6 +7,7 @@ import (
     "registry/epp"
     . "registry/epp/eppcom"
     "registry/xml"
+    "github.com/jackc/pgtype"
 )
 
 type Logger struct {
@@ -101,6 +102,33 @@ func getCreateContact(contact_id string, contact_type int) *xml.CreateContact {
     return &xml.CreateContact{Fields: fields}
 }
 
+func fakeExpdate(db *server.DBConn, domainid uint64, interval string) (string, error) {
+    row := db.QueryRow("SELECT now() AT TIME ZONE 'UTC' " + interval)
+    var new_exdate pgtype.Timestamp
+    err := row.Scan(&new_exdate)
+    if err != nil {
+        return "", err 
+    }   
+
+    _, err = db.Exec("UPDATE domain SET exdate = $1::timestamp WHERE id = $2::integer", new_exdate.Time, domainid)
+    if err != nil {
+        return "", err 
+    }   
+    err = epp.UpdateObjectStates(db, domainid)
+    if err != nil {
+        return "", err 
+    }   
+    return new_exdate.Time.UTC().Format("2006-01-02"), nil 
+}
+
+func SetExpiredExpdate(db *server.DBConn, domainid uint64) (string, error) {
+    return fakeExpdate(db, domainid, "- interval '40 day'")
+}
+
+func setProlongExpdate(db *server.DBConn, domainid uint64) (string, error) {
+    return fakeExpdate(db, domainid, "+ interval '30 day'")
+}
+
 func createDomain(t *testing.T, eppc *epp.EPPContext, name string, contact_name string, retcode int, sessionid uint64) {
     create_domain := xml.CreateDomain{Name:name, Registrant:contact_name}
     create_cmd := xml.XMLCommand{CmdType:EPP_CREATE_DOMAIN, Sessionid:sessionid}
@@ -110,6 +138,48 @@ func createDomain(t *testing.T, eppc *epp.EPPContext, name string, contact_name 
     if epp_res.RetCode != retcode {
         t.Error("should be ", retcode, epp_res.RetCode, epp_res.Msg)
     }
+}
+
+func infoDomain(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoDomainData {
+    info_domain := xml.InfoDomain{Name:name}
+    cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN, Sessionid:sessionid}
+    cmd.Content = &info_domain
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }   
+    if retcode == EPP_OK {
+        info := epp_res.Content.(*InfoDomainData)
+        return info
+    }   
+    return nil 
+}
+
+func CreateExpiredDomain(t *testing.T, serv *server.Server) {
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }   
+    test_domain := generateRandomDomain(zone)
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    eppc := epp.NewEPPContext(serv)
+    contact_name := getExistingContact(t, eppc, dbconn, regid, sessionid)
+    createDomain(t, eppc, test_domain, contact_name, EPP_OK, sessionid)
+
+    domain_data := infoDomain(t, eppc, test_domain, EPP_OK, sessionid)
+
+    _, err = SetExpiredExpdate(dbconn, domain_data.Id)
+    if err != nil {
+        t.Errorf("set expired failed: %v", err)
+    }   
+
+    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, regid uint, sessionid uint64) string {

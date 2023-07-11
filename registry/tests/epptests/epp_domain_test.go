@@ -5,25 +5,10 @@ import (
     "context"
     "registry/server"
     "registry/epp"
+    "registry/maintenance"
     . "registry/epp/eppcom"
     "registry/xml"
-    "github.com/jackc/pgtype"
 )
-
-func infoDomain(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoDomainData {
-    info_domain := xml.InfoDomain{Name:name}
-    cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN, Sessionid:sessionid}
-    cmd.Content = &info_domain
-    epp_res := eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != retcode {
-        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
-    }
-    if retcode == EPP_OK {
-        info := epp_res.Content.(*InfoDomainData)
-        return info
-    }
-    return nil
-}
 
 func TestEPPDomain(t *testing.T) {
     serv := prepareServer()
@@ -55,10 +40,7 @@ func TestEPPDomain(t *testing.T) {
 
     deleteObject(t, eppc, test_domain, EPP_DELETE_DOMAIN, EPP_OK, sessionid)
 
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
+    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func TestEPPCheckDomain(t *testing.T) {
@@ -88,10 +70,7 @@ func TestEPPCheckDomain(t *testing.T) {
         t.Error("should be ok")
     }
 
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
+    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func updateDomain(t *testing.T, eppc *epp.EPPContext, name string, registrant string, description []string,  retcode int, sessionid uint64) {
@@ -261,25 +240,6 @@ func TestEPPDomainStatus(t *testing.T) {
     }
 }
 
-func fakeExpdate(db *server.DBConn, domainid uint64) (string, error) {
-    row := db.QueryRow("SELECT now() AT TIME ZONE 'UTC' + interval '30 day' ")
-    var new_exdate pgtype.Timestamp
-    err := row.Scan(&new_exdate)
-    if err != nil {
-        return "", err
-    }
-
-    _, err = db.Exec("UPDATE domain SET exdate = $1::timestamp WHERE id = $2::integer", new_exdate.Time, domainid)
-    if err != nil {
-        return "", err
-    }
-    err = epp.UpdateObjectStates(db, domainid)
-    if err != nil {
-        return "", err
-    }
-    return new_exdate.Time.UTC().Format("2006-01-02"), nil
-}
-
 func TestEPPDomainRenew(t *testing.T) {
     serv := prepareServer()
 
@@ -311,14 +271,7 @@ func TestEPPDomainRenew(t *testing.T) {
         t.Error("should be ", EPP_PARAM_VALUE_POLICY, epp_res.Msg, epp_res.Errors)
     }
 
-    info_domain := xml.InfoDomain{Name:test_domain}
-    cmd := xml.XMLCommand{CmdType:EPP_INFO_DOMAIN, Sessionid:sessionid}
-    cmd.Content = &info_domain
-    epp_res = eppc.ExecuteEPPCommand(context.Background(), &cmd)
-    if epp_res.RetCode != EPP_OK {
-        t.Error("should be ", EPP_OK, epp_res.Msg)
-    }
-    domain_data := epp_res.Content.(*InfoDomainData)
+    domain_data := infoDomain(t, eppc, test_domain, EPP_OK, sessionid)
     cur_exdate := domain_data.Expiration_date.Time.UTC().Format("2006-01-02")
 
     renew_domain = xml.RenewDomain{Name:test_domain, CurExpDate:cur_exdate}
@@ -328,7 +281,7 @@ func TestEPPDomainRenew(t *testing.T) {
         t.Error("should be ", EPP_STATUS_PROHIBITS_OPERATION, epp_res.Msg, epp_res.Errors)
     }
 
-    cur_exdate, err = fakeExpdate(dbconn, domain_data.Id)
+    cur_exdate, err = setProlongExpdate(dbconn, domain_data.Id)
     if err != nil {
         t.Error("fake exdate failed", err)
     }
@@ -358,6 +311,7 @@ func transferDomain(t *testing.T, eppc *epp.EPPContext, name string, acid string
     }
 }
 
+/* test transfer with copying dependant objects */
 func TestEPPDomainTransfer(t *testing.T) {
     serv := prepareServer()
 
@@ -383,9 +337,12 @@ func TestEPPDomainTransfer(t *testing.T) {
     eppc := epp.NewEPPContext(serv)
     test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
     test_domain := generateRandomDomain(zone)
+    test_domain2 := generateRandomDomain(zone)
 
     createDomain(t, eppc, test_domain, test_contact, EPP_OK, sessionid)
+    createDomain(t, eppc, test_domain2, test_contact, EPP_OK, sessionid)
 
+    /* access to a second registrar should not be allowed without a transfer */
     _ = infoDomain(t, eppc, test_domain, EPP_AUTHORIZATION_ERR, sessionid2)
     _ = infoContact(t, eppc, test_contact, EPP_AUTHORIZATION_ERR, sessionid2)
 
@@ -412,6 +369,72 @@ func TestEPPDomainTransfer(t *testing.T) {
     pollAck(t, eppc, poll_msg.Msgid, EPP_OK, sessionid2) 
 
     transferDomain(t, eppc, test_domain, "", TR_REJECT, EPP_OK, sessionid2)
+
+    transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
+    transferDomain(t, eppc, test_domain, "", TR_APPROVE, EPP_OK, sessionid2)
+
+    deleteObject(t, eppc, test_domain, EPP_DELETE_DOMAIN, EPP_OK, sessionid2)
+    deleteObject(t, eppc, test_domain2, EPP_DELETE_DOMAIN, EPP_OK, sessionid)
+
+    logoutSession(t, serv, dbconn, sessionid)
+    logoutSession(t, serv, dbconn, sessionid2)
+}
+
+/* test transfer with transfering dependant objects */
+func TestEPPDomainTransfer2(t *testing.T) {
+    serv := prepareServer()
+
+    logger := server.NewLogger("")
+    dbconn, err := server.AcquireConn(serv.Pool, logger)
+    if err != nil {
+        t.Error("failed acquire conn")
+    }
+    defer dbconn.Close()
+
+    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }
+
+    regid2, reg_handle2, _, err := getRegistrarAndZone(dbconn, regid)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }
+
+    sessionid := fakeSession(t, serv, dbconn, regid)
+    sessionid2 := fakeSession(t, serv, dbconn, regid2)
+
+    eppc := epp.NewEPPContext(serv)
+
+    /* create contact that will be transfered */
+    test_contact := "TEST-" + server.GenerateRandString(8)
+    create_org := getCreateContact(test_contact, CONTACT_ORG)
+    createContact(t, eppc, create_org, EPP_OK, sessionid)
+    test_domain := generateRandomDomain(zone)
+
+    host_domain := generateRandomDomain("nonexistant.ru")
+    test_host1 := "ns1." + host_domain
+    test_host2 := "ns2." + host_domain
+    createHost(t, eppc, test_host1, []string{}, EPP_OK, sessionid)
+    createHost(t, eppc, test_host2, []string{}, EPP_OK, sessionid)
+
+    createDomain(t, eppc, test_domain, test_contact, EPP_OK, sessionid)
+    updateDomainHosts(t, eppc, test_domain, []string{test_host1, test_host2}, []string{}, EPP_OK, sessionid)
+
+    transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
+
+    _, err = dbconn.Exec("UPDATE epp_transfer_request SET acdate = now() - interval '1 day' WHERE registrar_id=$1::integer and acquirer_id=$2::integer " +
+                "and status = 0 and domain_id = (select id from object_registry where name = lower($3::text) and erdate is null)", regid, regid2, test_domain)
+    if err != nil {
+        t.Error("failed to update transfer request", err)
+    }
+
+    err = maintenance.FinishExpiredTransferRequests(serv, logger, dbconn)
+    if err != nil {
+        t.Error("failed close expired transfer request", err)
+    }
+
+    transferDomain(t, eppc, test_domain, reg_handle2, TR_QUERY, EPP_OBJECT_NOT_EXISTS, sessionid)
 
     transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
     transferDomain(t, eppc, test_domain, "", TR_APPROVE, EPP_OK, sessionid2)
