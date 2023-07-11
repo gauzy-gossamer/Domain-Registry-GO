@@ -1,0 +1,39 @@
+# run BIND9 & zone generation with crontab
+FROM python:3.11-slim-buster
+
+WORKDIR /usr/src/jobs
+
+# install Bind & crontab
+RUN apt-get update && apt-get install -y \
+    cron \
+    logrotate \
+    bind9 \
+    bind9utils \
+    build-essential libpq-dev
+
+COPY . .
+
+RUN pip install -r requirements.txt
+
+RUN mkdir -p logs
+RUN chmod +x *.pl
+
+RUN echo "/usr/src/jobs/logs/*.log {\n\
+    daily\n\
+    rotate 5\n\
+    compress\n\
+}" > /etc/logrotate.d/cronjobs
+
+# add crontab jobs
+RUN echo "0 7 * * *	root	cd /usr/src/jobs && python3 remove_expired_domains.py >> logs/remove_domains.log 2>&1\n\
+*/5 * * * *	root	cd /usr/src/jobs && ./run_genzone.pl >> logs/genzone.log 2>&1\n" >> /etc/crontab
+
+RUN mkdir -p /var/log/bind && chown bind:bind /var/log/bind && chmod 755 /var/log/bind
+RUN mkdir -p /run/named && chown bind:bind /run/named && chmod 755 /run/named
+
+# turn on dynamically added zones with rndc
+RUN sed -i '/directory/a allow-new-zones yes;recursion no;' /etc/bind/named.conf.options
+
+EXPOSE 53/udp 53/tcp
+
+CMD /usr/sbin/cron && /usr/sbin/named -f -c /etc/bind/named.conf -u bind

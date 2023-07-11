@@ -62,6 +62,17 @@ services:
   #  links:
   #     - regdb
 
+  # dns server
+  #bind9:
+  #  restart: always
+  #  container_name: bind9
+  #  build:
+  #      context: ./scripts
+  #  ports:
+  #    - "8053:53/tcp"
+  #    - "8053:53/udp"
+  #  links:
+  #     - regdb
 
 volumes:
   registry_db:

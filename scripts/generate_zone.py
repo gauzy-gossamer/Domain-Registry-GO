@@ -1,5 +1,7 @@
 import sys
+import os
 import time
+import logging
 import subprocess
 import argparse
 
@@ -148,7 +150,7 @@ def run_checkzone(zone_filename, zone):
                f"/usr/sbin/named-checkzone {zone} {zone_filename}", shell=True, stdout=subprocess.PIPE)
 
     (output, stderr) = process.communicate()
-    print(output.decode())
+    logging.info(output.decode())
     if process.returncode != 0:
         raise Exception('checkzone failed')
 
@@ -156,6 +158,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--zone',  type=str, default=None, help="only generate zone file for this zone")
+    parser.add_argument('--target-dir', dest='target_dir', type=str, default=None, help="move generated zones to this directory")
     parser.add_argument('--header',  type=str, default=None, help="prepend contents of this file to the zone")
     parser.add_argument('--run-named-checkzone', dest='run_checkzone',action='store_true', default=False, help="run named-checkzone on generated zone file")
 
@@ -166,17 +169,23 @@ def main():
     conn = get_pg_conn(config)
 
     for (zoneid, fqdn) in iter_zones(conn, args.zone):
-        zone_iterator = ZoneDB(conn, zoneid)
+        try:
+            zone_iterator = ZoneDB(conn, zoneid)
 
-        zone_filename = '{}.db'.format(fqdn)
+            zone_filename = '{}.db'.format(fqdn)
 
-        with open(zone_filename, 'w') as f:
-            generator = ZoneGenerator(zone_iterator, output_fd=f, header=args.header)
-            generator.generate_soa()
-            generator.generate_records()
+            with open(zone_filename, 'w') as f:
+                generator = ZoneGenerator(zone_iterator, output_fd=f, header=args.header)
+                generator.generate_soa()
+                generator.generate_records()
 
-        if args.run_checkzone:
-            run_checkzone(zone_filename, fqdn)
+            if args.run_checkzone:
+                run_checkzone(zone_filename, fqdn)
+
+            if args.target_dir is not None:
+                os.system(f"mv {zone_filename} {args.target_dir}")
+        except Exception as exc:
+            logging.error('zone generation failed {}\n'.format(exc))
 
 if __name__ == '__main__':
     main()
