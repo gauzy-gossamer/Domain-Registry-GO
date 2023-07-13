@@ -34,14 +34,13 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('d
   Object: 
 	
     domain: {{name}}
-    descr:  
     created: {{crdate}}
     reg-till: {{free_date}}
     registrar:  {{registrar}}
 	
   {{state}}
 	
-  {{request_datetime}}  Moscow, Russia.', '3LVL Registry Notification: domain {{name}} changed', 'false');
+  {{request_datetime}}', 'Registry Notification: domain {{name}} changed', 'false');
 INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('transfer_new', 'Dear Colleague,
 	
   This is to notify you that some object(s) in the database
@@ -51,7 +50,6 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('t
   Object: 
 	
     domain: {{name}}
-    descr:  
     created: {{crdate}}
     reg-till: {{free_date}}
     registrar:  {{registrar}}
@@ -59,7 +57,7 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('t
 	
   {{state}}
 	
-  {{request_datetime}}  Moscow, Russia.', '3LVL Registry Notification: transfer for {{name}} requested', 'true');
+  {{request_datetime}}', 'Registry Notification: transfer for {{name}} requested', 'true');
 INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('transfer_state_change', 'Dear Colleague,
 	
   This is to notify you that some object(s) in the database
@@ -69,7 +67,6 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('t
   Object: 
 	
     domain: {{name}}
-    descr:  
     created: {{crdate}}
     reg-till: {{free_date}}
     registrar:  {{registrar}}
@@ -77,7 +74,7 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('t
 	
   {{state}}
 	
-  {{request_datetime}}  Moscow, Russia.', '3LVL Registry Notification: transfer for {{name}} changed', 'true');
+  {{request_datetime}}', 'Registry Notification: transfer for {{name}} changed', 'true');
 INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('domain_state_change', 'Dear Colleague,
 	        
   This is to notify you that some object(s) in the database
@@ -87,14 +84,13 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('d
   Object: 
 					        
     domain: {{name}}
-    descr:  
     created: {{crdate}}
     reg-till: {{free_date}}
     registrar:  {{registrar}}
 										        
   {{state}}
 											        
-  {{request_datetime}}  Moscow, Russia.', '3LVL Registry Notification: domain {{name}} changed', 'true');
+  {{request_datetime}}', 'Registry Notification: domain {{name}} changed', 'true');
 
 INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('lowcredit', 'Dear Colleague,
 
@@ -102,5 +98,5 @@ INSERT INTO mail_request_type(request_type, template, subject, active) VALUES('l
 
   Current credit: {{credit}}
 
-  {{request_datetime}}  Moscow, Russia.', '3LVL Registry Notification: low credit', 'true');
+  {{request_datetime}}', 'Registry Notification: low credit', 'true');
 

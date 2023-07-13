@@ -191,11 +191,6 @@ type CreateDomainResult struct {
     Exdate pgtype.Timestamp
 }
 
-const (
-    POLL_LOW_CREDIT = 1
-    POLL_TRANSFER_REQUEST = 22
-)
-
 type PollMessage struct {
     MsgType uint
     Msgid uint

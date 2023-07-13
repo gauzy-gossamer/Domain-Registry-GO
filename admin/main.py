@@ -4,10 +4,12 @@ from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi_utils.tasks import repeat_every
 
 from zone.router import router as zone_router
 from registrar.router import router as registrar_router
 from balance.router import router as balance_router
+import mailer.mailer as mailer
 
 app = FastAPI()
 
@@ -22,10 +24,14 @@ async def validation_exception_handler(request, exc):
 async def startup():
     await database.connect()
 
-
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
+
+@app.on_event("startup")
+@repeat_every(seconds=60*2)
+async def send_emails():
+    await mailer.send_emails()
 
 app.include_router(zone_router)
 app.include_router(registrar_router)

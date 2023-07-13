@@ -117,8 +117,17 @@ func (c *CreateTransferRequest) SetParams(ownerid uint, acquirerid uint, domaini
     return c
 }
 
+func (c *CreateTransferRequest) createNotifications(db *server.DBConn, notify_registrar uint) (uint, error) {
+    _, err := NewCreateMailRequest(uint64(notify_registrar), MAIL_NEW_TRANSFER).SetDomainID(c.domainid).Exec(db)
+    if err != nil {
+        return 0, err
+    }
+
+    return CreatePollMessage(db, notify_registrar, POLL_TRANSFER_REQUEST)
+}
+
 func (c *CreateTransferRequest) Exec(db *server.DBConn, notify_registrar uint) (uint, error) {
-    poll_msg_id, err := CreatePollMessage(db, notify_registrar, POLL_TRANSFER_REQUEST)
+    poll_msg_id, err := c.createNotifications(db, notify_registrar)
     if err != nil {
         return 0, err
     }
