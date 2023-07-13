@@ -121,7 +121,7 @@ func TestEPPPoll(t *testing.T) {
     epp_res := eppc.ExecuteEPPCommand(context.Background(), &poll_cmd)
     /* if no message, create it */
     if epp_res.RetCode == EPP_POLL_NO_MSG {
-        _, err = dbreg.CreatePollMessage(dbconn, regid, POLL_LOW_CREDIT)
+        _, err = dbreg.CreatePollMessage(dbconn, regid, dbreg.POLL_LOW_CREDIT)
         if err != nil {
             t.Error(err)
         }

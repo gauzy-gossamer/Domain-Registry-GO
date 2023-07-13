@@ -8,5 +8,4 @@ SELECT create_object(3, 'TEST2-REG', (select id from enum_object_type where name
 INSERT INTO object(id, clid) VALUES(3, 3); 
 
 -- for testing low credit messages
-INSERT INTO poll_credit_zone_limit VALUES(1, 10);
-INSERT INTO registrar_credit(credit, registrar_id, zone_id) VALUES(0, 3, 1);
+INSERT INTO poll_credit_zone_limit VALUES(1, 20);
