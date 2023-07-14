@@ -13,6 +13,7 @@ import (
 func TestSessionQueryLimit(t *testing.T) {
     db := prepareDB()
     epp_session := server.EPPSessions{}
+    epp_session.SessionTimeoutSec = 3000
     epp_session.InitSessions(db)
     regid := uint(1)
     

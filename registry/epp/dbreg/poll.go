@@ -6,6 +6,11 @@ import (
     "github.com/jackc/pgtype"
 )
 
+const (
+    POLL_LOW_CREDIT = 1 
+    POLL_TRANSFER_REQUEST = 22
+)
+
 func CreatePollMessage(db *server.DBConn, registrar_id uint, msg_type int) (uint, error) {
     row := db.QueryRow("INSERT INTO message(clid, msgtype, crdate, exdate)" +
                        " VALUES($1::bigint,$2::bigint,now(), now() + interval '7 day')" +

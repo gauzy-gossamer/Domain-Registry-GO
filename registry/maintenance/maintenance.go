@@ -37,7 +37,7 @@ func FinishExpiredTransferRequests(serv *server.Server, logger server.Logger, db
     return nil
 }
 
-func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *server.DBConn) error {
+func CreateLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *server.DBConn) error {
     // for each reagistrar and zone count credit from advance invoices.
     // if credit is lower than limit and last poll message for this
     // registrar and zone is older than last advance invoice,
@@ -81,9 +81,7 @@ func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *
         }
         defer dbconn2.Rollback()
 
-        row := dbconn2.QueryRow("INSERT INTO message(clid, exdate, msgtype) VALUES($1::integer, CURRENT_TIMESTAMP + INTERVAL '7days', 1) returning id", regid)
-        var msgid int
-        err = row.Scan(&msgid)
+        msgid, err := dbreg.CreatePollMessage(dbconn2, uint(regid), dbreg.POLL_LOW_CREDIT)
         if err != nil {
             return err
         }
@@ -93,6 +91,13 @@ func createLowCreditMessages(serv *server.Server, logger server.Logger, dbconn *
         if err != nil {
             return err
         }
+
+        // create mail request notification
+        _, err = dbreg.NewCreateMailRequest(uint64(regid), dbreg.MAIL_LOW_CREDIT).Exec(dbconn2)
+        if err != nil {
+            return err
+        }
+
         err = dbconn2.Commit()
         if err != nil {
             return err
@@ -125,7 +130,7 @@ func Maintenance(serv *server.Server) {
             logger.Error(err)
         }
 
-        if err = createLowCreditMessages(serv, logger, dbconn); err != nil {
+        if err = CreateLowCreditMessages(serv, logger, dbconn); err != nil {
             logger.Error(err)
         }
     }

@@ -121,7 +121,7 @@ INSERT INTO enum_transfer_states VALUES(0, 'pending');
 INSERT INTO enum_transfer_states VALUES(1, 'clientCancelled');
 INSERT INTO enum_transfer_states VALUES(2, 'clientRejected');
 INSERT INTO enum_transfer_states VALUES(3, 'clientApproved');
-INSERT INTO enum_transfer_states VALUES(5, 'serverCancelled');
+INSERT INTO enum_transfer_states VALUES(4, 'serverCancelled');
 
 -- delete messages on delete from epp_transfer_request
 CREATE OR REPLACE FUNCTION before_delete_transfer_request() RETURNS TRIGGER AS
