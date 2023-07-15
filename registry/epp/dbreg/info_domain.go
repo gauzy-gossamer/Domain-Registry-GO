@@ -25,13 +25,12 @@ func NewInfoDomainDB() InfoDomainDB {
 func (q *InfoDomainDB) create_info_query() string {
     var query strings.Builder
     query.WriteString("SELECT dobr.id AS id ")
-    query.WriteString(" , dobr.roid AS roid , dobr.name AS fqdn ")
-    query.WriteString(" , (dobr.erdate AT TIME ZONE 'UTC' ) AT TIME ZONE '" + q.p_local_zone + "' AS delete_time ")
-    query.WriteString(" , cor.id AS registrant_id , cor.name  AS registrant_handle ")
-    query.WriteString(" , dt.description, obj.clid AS registrar_id ")
+    query.WriteString(" , dobr.roid AS roid, dobr.name AS fqdn ")
+    query.WriteString(" , (dobr.erdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS delete_time ")
+    query.WriteString(" , cor.id AS registrant_id, cor.name AS registrant_handle ")
+    query.WriteString(" , dt.description, dt.keyset, obj.clid AS registrar_id ")
     query.WriteString(" , clr.handle AS registrar_handle, dobr.crid AS cr_registrar_id ")
-    query.WriteString(" , crr.handle AS cr_registrar_handle, obj.upid AS upd_registrar_id ")
-    query.WriteString(" , upr.handle AS upd_registrar_handle ")
+    query.WriteString(" , crr.handle, obj.upid, upr.handle ")
     query.WriteString(" , (dobr.crdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS created ")
     query.WriteString(" , (obj.trdate AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS transfer_time ")
     query.WriteString(" , (obj.update AT TIME ZONE 'UTC') AT TIME ZONE '" + q.p_local_zone + "' AS update_time ")
@@ -84,7 +83,7 @@ func (q *InfoDomainDB) Exec(db *server.DBConn) (*InfoDomainData, error) {
     var description pgtype.Text
 
     err := row.Scan(&data.Id, &data.Roid, &data.Fqdn, &data.Expiration_date, &data.Registrant.Id, &data.Registrant.Handle,
-                    &description, &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,
+                    &description, &data.Keysetid, &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,
                     &data.Create_registrar.Id, &data.Create_registrar.Handle, &data.Update_registrar.Id, &data.Update_registrar.Handle, &data.Creation_time,
                     &data.Transfer_time, &data.Update_time, &data.Expiration_date, &data.Authinfopw, &data.Cur_time, &data.ZoneId)
     if err != nil {

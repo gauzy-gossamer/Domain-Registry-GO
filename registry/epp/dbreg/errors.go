@@ -1,5 +1,9 @@
 package dbreg
 
+import (
+    "errors"
+)
+
 type ParamError struct {
     Val string
 }
@@ -15,4 +19,6 @@ func (e *BillingFailure) Error() string {
     return "billing failure"
 }
 
+
+var ObjectNotFound = errors.New("object not found")
 

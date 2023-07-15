@@ -363,6 +363,14 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
         }
     }
 
+    if len(response.Ext) > 0 {
+        for _, ext := range response.Ext {
+            if ext.ExtType == EPP_EXT_SECDNS {
+                resp.Ext = append(resp.Ext, Extension{Content:SecDNSResponse(ext.Content)})
+            }
+        }
+    }
+
     if response.CmdType == EPP_POLL_REQ {
         if response.Content != nil {
             resp.MsgQ = PollReqResponse(response)

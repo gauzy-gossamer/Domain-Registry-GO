@@ -15,8 +15,8 @@ func DeleteDomain(db *server.DBConn, domainid uint64) error {
         return err
     }
 
-    row := db.QueryRow("DELETE FROM domain WHERE id = $1::integer " +
-                       "returning id", domainid)
+    row := db.QueryRow("DELETE FROM domain WHERE id = $1::bigint returning id", 
+                      domainid)
     var deleted_id uint64
     err = row.Scan(&deleted_id)
     if err != nil {

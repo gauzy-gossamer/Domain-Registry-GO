@@ -6,6 +6,7 @@ import (
     "registry/xml"
     "registry/epp/dbreg"
     "registry/epp/dbreg/contact"
+    "registry/epp/dbreg/dnssec"
     hostdb "registry/epp/dbreg/host"
     . "registry/epp/eppcom"
     "github.com/jackc/pgx/v5"
@@ -107,6 +108,17 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
     }
 
     var res = EPPResult{RetCode:EPP_OK}
+
+    /* fill EPP extensions */
+    if !domain_data.Keysetid.IsNull() {
+        dsrecord, err := dnssec.GetDSRecord(ctx.dbconn, domain_data.Keysetid.Get())
+        if err != nil {
+            ctx.logger.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
+        res.Ext = append(res.Ext, EPPExt{ExtType:EPP_EXT_SECDNS, Content:dsrecord})
+    }
+
     res.Content = domain_data
     return &res
 }
@@ -537,6 +549,14 @@ func epp_domain_delete_impl(ctx *EPPContext, v *xml.DeleteObject) (*EPPResult) {
         return &EPPResult{RetCode:2500}
     }
     defer ctx.dbconn.Rollback()
+
+    if !domain_data.Keysetid.IsNull() {
+        err = dnssec.DeleteKeyset(ctx.dbconn, domain_data.Keysetid.Get())
+        if err != nil {
+            ctx.logger.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
+        }
+    }
 
     err = dbreg.DeleteDomain(ctx.dbconn, domain_data.Id)
     if err != nil {

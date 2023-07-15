@@ -25,7 +25,7 @@ func NewInfoRegistrarDB() InfoRegistrarDB {
 
 func (q *InfoRegistrarDB) create_info_query() string {
     var query strings.Builder
-    query.WriteString("SELECT r.id AS id ")
+    query.WriteString("SELECT r.id AS id, r.object_id as oid ")
     query.WriteString(" , obr.roid AS roid , r.handle AS handle ")
     query.WriteString(" , r.intpostal, r.intaddress, r.locpostal, r.locaddress ")
     query.WriteString(" , r.legaladdress, r.fax, r.telephone, r.email, r.www, r.whois ")
@@ -78,7 +78,7 @@ func (q *InfoRegistrarDB) Exec(db *server.DBConn) (*InfoRegistrarData, error) {
 
     var intaddress, locaddress, legaladdress, fax, telephone, email pgtype.Text
 
-    err := row.Scan(&data.Id, &data.Roid, &data.Handle,
+    err := row.Scan(&data.Id, &data.ObjectID, &data.Roid, &data.Handle,
                     &data.IntPostal, &intaddress, &data.LocPostal, &locaddress,
                     &legaladdress, &fax, &telephone, &email, &data.WWW, &data.Whois,
                     &data.Sponsoring_registrar.Id, &data.Sponsoring_registrar.Handle,

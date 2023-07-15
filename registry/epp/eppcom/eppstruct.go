@@ -59,6 +59,15 @@ func FormatDatePG(date pgtype.Timestamp) string {
     return date.Time.Format(time.RFC3339)
 }
 
+const (
+    EPP_EXT_SECDNS = iota + 1
+)
+
+type EPPExt struct {
+    ExtType int
+    Content interface{}
+}
+
 /* main structure returned by ExecuteEPPCommand */
 type EPPResult struct {
     CmdType int
@@ -66,7 +75,10 @@ type EPPResult struct {
     Msg string
     Errors []string
     Reason string
+    // main EPP content
     Content interface{}
+    // EPP Extensions
+    Ext []EPPExt
 }
 
 type CheckResult struct {
@@ -145,6 +157,7 @@ type InfoHostData struct {
 type InfoRegistrarData struct {
     ObjectData
 
+    ObjectID uint64
     Handle string
 
     IntPostal pgtype.Text
@@ -164,6 +177,24 @@ type InfoRegistrarData struct {
     Addrs []string
 }
 
+type DNSKey struct {
+    Id uint64
+    Flags int 
+    Protocol int 
+    Alg int 
+    Key string
+}
+
+type DSRecord struct {
+    Id uint64
+    KeyTag int 
+    Alg int 
+    DigestType int 
+    Digest string
+    MaxSigLife int 
+    Key DNSKey
+}
+
 type InfoDomainData struct {
     ObjectData
 
@@ -175,6 +206,7 @@ type InfoDomainData struct {
     Authinfo_valid bool     /* whether authinfo is still valid */
     Cur_time pgtype.Timestamp /* current db timestamp */
     ZoneId int
+    Keysetid NullableUint64 /* id of DNSSEC object records */
 
     Description []string
     Hosts []string
