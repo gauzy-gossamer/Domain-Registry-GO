@@ -7,6 +7,8 @@ import (
     "registry/epp/dbreg/dnssec"
     "registry/epp/dbreg"
     "registry/tests/epptests"
+
+    "github.com/miekg/dns"
 )
 
 func TestRegistryServer(t *testing.T) {
@@ -22,16 +24,23 @@ func TestRegistryServer(t *testing.T) {
 
     create_keyset := dnssec.NewCreateKeysetDB("K-" + domain, regid)
 
-    keytag := 10
-    alg := 5
-    digestType := 1
-    digest := "7CE5D830A8194AA98DBF3A32223F2A4C79DF5E578CB39D0217878810F28C880DB11398DF565FD1C7555F786CC1A22B53"
-    flags := 10
+    alg := dns.RSASHA256
+    flags := 256
     protocol := 3
-    pubkey := "3ab1GX"
+    pubkey := "AwEAAcNEU67LJI5GEgF9QLNqLO1SMq1EdoQ6E9f85ha0k0ewQGCblyW2836GiVsm6k8Kr5ECIoMJ6fZWf3CQSQ9ycWfTyOHfmI3eQ/1Covhb2y4bAmL/07PhrL7ozWBW3wBfM335Ft9xjtXHPy7ztCbV9qZ4TVDTW/Iyg0PiwgoXVesz"
+
+    dnskey := dns.DNSKEY{
+        Hdr:       dns.RR_Header{Name:domain, Rrtype:dns.TypeDNSKEY, Class:dns.ClassINET}, 
+        Flags:     uint16(flags), 
+        Protocol:  uint8(protocol), 
+        Algorithm: alg, 
+        PublicKey: pubkey,
+    }
+    ds_alg := dns.SHA256
+    ds := dnskey.ToDS(ds_alg)
 
     dbconn.Begin()
-    keyset_id, err := create_keyset.SetDSRecord(keytag, alg, digestType, digest, 4).SetDNSKey(flags, alg, protocol, pubkey).Exec(dbconn)
+    keyset_id, err := create_keyset.SetDSRecord(int(ds.KeyTag), int(ds_alg), int(ds.DigestType), ds.Digest, 4).SetDNSKey(flags, int(alg), protocol, pubkey).Exec(dbconn)
     if err != nil {
         dbconn.Rollback()
         t.Error(err)

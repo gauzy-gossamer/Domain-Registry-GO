@@ -155,7 +155,26 @@ func infoDomain(t *testing.T, eppc *epp.EPPContext, name string, retcode int, se
     return nil 
 }
 
-func CreateExpiredDomain(t *testing.T, serv *server.Server) {
+func InfoDomain(t *testing.T, serv *server.Server, domain string) *InfoDomainData {
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        t.Error("failed to get registrar")
+    }   
+    sessionid := fakeSession(t, serv, dbconn, regid)
+
+    eppc := epp.NewEPPContext(serv)
+    info_domain := infoDomain(t, eppc, domain, EPP_OK, sessionid)
+    logoutSession(t, serv, dbconn, sessionid)
+
+    return info_domain
+}
+
+func CreateDomain(t *testing.T, serv *server.Server) (string, uint64) {
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
@@ -174,12 +193,23 @@ func CreateExpiredDomain(t *testing.T, serv *server.Server) {
 
     domain_data := infoDomain(t, eppc, test_domain, EPP_OK, sessionid)
 
-    _, err = SetExpiredExpdate(dbconn, domain_data.Id)
+    logoutSession(t, serv, dbconn, sessionid)
+
+    return test_domain, domain_data.Id
+}
+
+func CreateExpiredDomain(t *testing.T, serv *server.Server) {
+    _, domain_id := CreateDomain(t, serv)
+
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+    _, err = SetExpiredExpdate(dbconn, domain_id)
     if err != nil {
         t.Errorf("set expired failed: %v", err)
     }   
-
-    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, regid uint, sessionid uint64) string {
