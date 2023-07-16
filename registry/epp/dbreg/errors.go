@@ -9,7 +9,7 @@ type ParamError struct {
 }
 
 func (e *ParamError) Error() string {
-    return "param error"
+    return e.Val
 }
 
 type BillingFailure struct {

@@ -13,11 +13,13 @@ type CreateDomainDB struct {
     host_objects []HostObj
     registrant uint64
     description []string
+    keysetid NullableUint64
 }
 
 func NewCreateDomainDB() CreateDomainDB {
     obj := CreateDomainDB{}
     obj.p_local_zone = "UTC"
+    obj.keysetid.Set(nil)
     return obj
 }
 
@@ -28,6 +30,11 @@ func (q *CreateDomainDB) SetParams(domain string, zoneid int, registrant uint64,
     q.registrant = registrant
     q.host_objects = host_objects
     q.description = description
+    return q
+}
+
+func (q *CreateDomainDB) SetKeyset(keysetid uint64) *CreateDomainDB {
+    q.keysetid.Set(keysetid)
     return q
 }
 
@@ -42,23 +49,31 @@ func (q *CreateDomainDB) Exec(db *server.DBConn) (*CreateDomainResult, error) {
     create_result := CreateDomainResult{}
     create_result.Id = object.Id
     create_result.Name = object.Name
-    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text " +
-                    " , (crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text + ( $3::integer * interval '1 month') )::timestamp " +
-                    "  FROM object_registry " +
-                    " WHERE id = $2::bigint FOR UPDATE OF object_registry", q.p_local_zone, object.Id, 12)
+    row := db.QueryRow("SELECT crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text" +
+                    ", (crdate::timestamp AT TIME ZONE 'UTC' AT TIME ZONE $1::text + ( $3::integer * interval '1 month') )::timestamp " +
+                    "FROM object_registry " +
+                    "WHERE id = $2::bigint FOR UPDATE OF object_registry", q.p_local_zone, object.Id, 12)
     err = row.Scan(&create_result.Crdate, &create_result.Exdate)
     if err != nil {
         return nil, err
     }
 
     var params []any
-    cols := "INSERT INTO domain(id, zone, registrant, exdate, description)"
-    vals := "VALUES($1::integer, $2::integer, $3::integer, $4::timestamp, $5::jsonb)"
+    cols := "INSERT INTO domain(id, zone, registrant, exdate, description"
+    vals := "VALUES($1::bigint, $2::integer, $3::bigint, $4::timestamp, $5::jsonb"
     params = append(params, object.Id)
     params = append(params, q.zoneid)
     params = append(params, q.registrant)
     params = append(params, create_result.Exdate)
     params = append(params, PackJson(q.description))
+
+    if !q.keysetid.IsNull() {
+        cols += ", keyset"
+        vals += ", $6::bigint"
+        params = append(params, q.keysetid.Get())
+    }
+    cols += ")"
+    vals += ")"
 
     _, err = db.Exec(cols + vals, params...)
     if err != nil {

@@ -105,9 +105,7 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
                 epp_result = epp_domain_info_impl(ctx, v)
             }
         case EPP_CREATE_DOMAIN:
-            if v, ok := cmd.Content.(*xml.CreateDomain) ; ok {
-                epp_result = epp_domain_create_impl(ctx, v)
-            }
+            epp_result = epp_domain_create_impl(ctx, cmd)
         case EPP_UPDATE_DOMAIN:
             if v, ok := cmd.Content.(*xml.UpdateDomain) ; ok {
                 epp_result = epp_domain_update_impl(ctx, v)

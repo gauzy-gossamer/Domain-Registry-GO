@@ -17,6 +17,7 @@ type XMLCommand struct {
     ClTRID string
     SvTRID string
     Content interface{}
+    Exts []eppcom.EPPExt
 }
 
 type CheckObject struct {

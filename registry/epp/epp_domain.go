@@ -123,7 +123,12 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
     return &res
 }
 
-func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
+func epp_domain_create_impl(ctx *EPPContext, cmd *xml.XMLCommand) (*EPPResult) {
+    v, ok := cmd.Content.(*xml.CreateDomain)
+    if !ok {
+        ctx.logger.Error("CreateDomain conversion failed")
+        return &EPPResult{RetCode:EPP_FAILED}
+    }
     ctx.logger.Info("Domain create", v.Name)
     domain := normalizeDomain(v.Name)
 
@@ -132,7 +137,6 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
     }
 
     zone := dbreg.GetDomainZone(ctx.dbconn, domain)
-
     if zone == nil {
         return &EPPResult{RetCode:2306}
     }
@@ -193,6 +197,23 @@ func epp_domain_create_impl(ctx *EPPContext, v *xml.CreateDomain) (*EPPResult) {
     defer ctx.dbconn.Rollback()
 
     create_domain := dbreg.NewCreateDomainDB()
+
+    if len(cmd.Exts) > 0 {
+        for _, ext := range cmd.Exts {
+            if ext.ExtType == EPP_EXT_SECDNS {
+                keyset_id, err := createDomainSecDNS(ctx, domain, ext.Content)
+                if err != nil {
+                    if perr, ok := err.(*dbreg.ParamError); ok {
+                        return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Error()}}
+                    }   
+                    ctx.logger.Error(err)
+                    return &EPPResult{RetCode:EPP_FAILED}
+                }   
+                create_domain.SetKeyset(keyset_id)
+            }
+        }
+    }
+
     result, err := create_domain.SetParams(domain, zone.Id, registrant, ctx.session.Regid, v.Description, host_objects).Exec(ctx.dbconn)
     if err != nil {
         ctx.logger.Error(err)
