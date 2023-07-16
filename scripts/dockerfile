@@ -17,6 +17,7 @@ RUN pip install -r requirements.txt
 
 RUN mkdir -p logs
 RUN chmod +x *.pl
+RUN cp .config.json.docker config.json
 
 RUN echo "/usr/src/jobs/logs/*.log {\n\
     daily\n\

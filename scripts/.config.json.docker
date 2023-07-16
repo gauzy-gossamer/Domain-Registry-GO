@@ -1,0 +1,5 @@
+{
+    "db":{"host":"regdb", "password":"dbpassword", "user":"registry", "port":"5432"},
+    "admin_host":"http://127.0.0.1:8088",
+    "grpc_host":"regcore:51015"
+}
