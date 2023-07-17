@@ -5,6 +5,8 @@ import (
     "context"
     "registry/server"
     "registry/epp"
+    "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     . "registry/epp/eppcom"
     "registry/xml"
     "github.com/jackc/pgtype"
@@ -269,6 +271,9 @@ func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, r
         contact_name = "TEST-CONTACT1"
         create_org := getCreateContact(contact_name, CONTACT_ORG)
         createContact(t, eppc, create_org, EPP_OK, sessionid)
+        /* set serverDeleteProhibited, so it doesnt get removed when domains are */
+        contactid, _ := contact.GetContactIdByHandle(db, contact_name, regid)
+        _, _ = dbreg.CreateObjectStateRequest(db, contactid, 1)
 
         //t.Error(err)
     }

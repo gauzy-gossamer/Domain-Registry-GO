@@ -138,7 +138,7 @@ func epp_domain_create_impl(ctx *EPPContext, cmd *xml.XMLCommand) (*EPPResult) {
 
     zone := dbreg.GetDomainZone(ctx.dbconn, domain)
     if zone == nil {
-        return &EPPResult{RetCode:2306}
+        return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
     }
 
     if !ctx.session.System {
@@ -160,8 +160,9 @@ func epp_domain_create_impl(ctx *EPPContext, cmd *xml.XMLCommand) (*EPPResult) {
     if ok, err := NewDomainChecker().IsDomainRegistrable(ctx.dbconn, domain, zone.Id); !ok {
         if err != nil {
             ctx.logger.Error(err)
+            return &EPPResult{RetCode:EPP_FAILED}
         }
-        return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
+        return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"domain not registrable"}}
     }
 
     registrant, err := contact.GetContactIdByHandle(ctx.dbconn, v.Registrant, ctx.session.Regid)
@@ -531,7 +532,8 @@ func deleteUnlinkedContacts(ctx *EPPContext, registrant uint64) error {
     if err != nil {
         return err
     }
-    if !object_states.hasState(stateLinked) {
+    if !object_states.hasState(stateLinked) &&
+       !object_states.hasState(serverDeleteProhibited) {
         err = contact.DeleteContact(ctx.dbconn, registrant)
         if err != nil {
             return err
@@ -551,7 +553,8 @@ func deleteUnlinkedHosts(ctx *EPPContext, hosts []dbreg.HostObj) error {
         if err != nil {
             return err
         }
-        if !object_states.hasState(stateLinked) {
+        if !object_states.hasState(stateLinked) &&
+           !object_states.hasState(serverDeleteProhibited) {
             err = hostdb.DeleteHost(ctx.dbconn, host.Id)
             if err != nil {
                 return err
