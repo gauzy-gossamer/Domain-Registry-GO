@@ -590,7 +590,7 @@ func parseLogin(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
     return &cmd, nil
 }
 
-func parseExtensions(ctx *xpath.Context, nodes []types.Node, cmd *XMLCommand) error {
+func (s *XMLParser) parseExtensions(ctx *xpath.Context, nodes []types.Node, cmd *XMLCommand) error {
     for _, node := range nodes {
         if err := ctx.SetContextNode(node); err != nil {
             return err
@@ -598,18 +598,25 @@ func parseExtensions(ctx *xpath.Context, nodes []types.Node, cmd *XMLCommand) er
 
         switch node.NodeName() {
             case "secDNS:create":
+                if !s.secDNS {
+                    return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg:"secDNS is not supported"}
+                }
                 ext, err := parseCreateSecDNS(ctx)
                 if err != nil {
                     return err
                 }
                 cmd.Exts = append(cmd.Exts, ext)
             case "secDNS:update":
+                if !s.secDNS {
+                    return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg:"secDNS is not supported"}
+                }
                 ext, err := parseUpdateSecDNS(ctx)
                 if err != nil {
                     return err
                 }
                 cmd.Exts = append(cmd.Exts, ext)
-                glg.Error("secDNS:update", ext)
+            default:
+                return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg: node.NodeName() + " is not supported"}
 
         }
     }
@@ -617,8 +624,8 @@ func parseExtensions(ctx *xpath.Context, nodes []types.Node, cmd *XMLCommand) er
     return nil
 }
 
-func parseCommand(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
-    ctx.SetContextNode(*node)
+func (s *XMLParser) parseCommand(ctx *xpath.Context, node types.Node) (*XMLCommand, error) {
+    ctx.SetContextNode(node)
 
     nodes := xpath.NodeList(ctx.Find("epp:*[position()=1]"))
     if len(nodes) != 1 {
@@ -658,10 +665,10 @@ func parseCommand(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
         return nil, err
     }
 
-    ctx.SetContextNode(*node)
+    ctx.SetContextNode(node)
     extensions := xpath.NodeList(ctx.Find("epp:extension/*"))
     if len(extensions) > 0 {
-        err = parseExtensions(ctx, extensions, cmd)
+        err = s.parseExtensions(ctx, extensions, cmd)
         if err != nil {
             return nil, err
         }
@@ -686,7 +693,7 @@ func (s *XMLParser) ParseMessage(xml_message string) (*XMLCommand, error) {
         return nil, &CommandError{RetCode:EPP_SYNTAX_ERR, Msg:fmt.Sprint(errs)}
     }
 
-    root ,err := doc.DocumentElement()
+    root, err := doc.DocumentElement()
     if err != nil {
         glg.Error(err)
         return nil,err
@@ -708,7 +715,7 @@ func (s *XMLParser) ParseMessage(xml_message string) (*XMLCommand, error) {
     }
     switch nodes[0].NodeName() {
         case "command":
-            return parseCommand(ctx, &nodes[0])
+            return s.parseCommand(ctx, nodes[0])
         case "hello":
             var cmd XMLCommand
             cmd.CmdType = EPP_HELLO

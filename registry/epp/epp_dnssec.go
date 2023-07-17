@@ -103,7 +103,7 @@ func updateDomainSecDNS(ctx *EPPContext, domain_data *eppcom.InfoDomainData, dom
 
     if secdns_update.RemAll {
         if len(dsrecs_map) == 0 {
-            return 0, errors.New("no dsrecords to remove")
+            return 0, &dbreg.ParamError{Val:"no dsrecords to remove"}
         }
         for _, v := range dsrecs_map {
             rem_ids = append(rem_ids, v)
@@ -113,7 +113,7 @@ func updateDomainSecDNS(ctx *EPPContext, domain_data *eppcom.InfoDomainData, dom
         /* remove individual records */
         for _, dsrec := range secdns_update.RemDS {
             if _, found := dsrecs_map[dsrec]; !found {
-                return 0, errors.New("dsrecord not found")
+                return 0, &dbreg.ParamError{Val:"dsrecord not found"}
             }
 
             rem_ids = append(rem_ids, dsrecs_map[dsrec])
@@ -123,7 +123,7 @@ func updateDomainSecDNS(ctx *EPPContext, domain_data *eppcom.InfoDomainData, dom
 
     for _, dsrec := range secdns_update.AddDS {
         if _, found := dsrecs_map[dsrec]; found {
-            return 0, errors.New("dsrecord already present")
+            return 0, &dbreg.ParamError{Val:"dsrecord already present"}
         }
         dsrecs_map[dsrec] = 0
     }
