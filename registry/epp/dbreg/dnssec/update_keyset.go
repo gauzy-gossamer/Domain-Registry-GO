@@ -20,15 +20,17 @@ func UpdateKeyset(db *server.DBConn, keysetid uint64, add_ds []eppcom.DSRecord, 
     }
 
     for _, dsid := range rem_ds {
-        _, err := db.Exec("DELETE FROM dnskey WHERE id in (SELECT id FROM dsrecord WHERE id = $1::integer)", dsid)
+        row := db.QueryRow("DELETE FROM dsrecord WHERE id = $1::bigint returning dnskey_id", dsid)
+        var dnskey_id uint64
+        err := row.Scan(&dnskey_id)
+        if err != nil {
+            return err
+        }
+        _, err = db.Exec("DELETE FROM dnskey WHERE id = $1::bigint", dnskey_id)
         if err != nil {
             return err
         }
 
-        _, err = db.Exec("DELETE FROM dsrecord WHERE id = $1::integer", dsid)
-        if err != nil {
-            return err
-        }
     }
 
     return nil
