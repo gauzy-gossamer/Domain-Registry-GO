@@ -68,6 +68,13 @@ type EPPExt struct {
     Content interface{}
 }
 
+/* SecDNS extension secDNS:update section */
+type SecDNSUpdate struct {
+    AddDS []DSRecord
+    RemDS []DSRecord
+    RemAll bool
+}
+
 /* main structure returned by ExecuteEPPCommand */
 type EPPResult struct {
     CmdType int

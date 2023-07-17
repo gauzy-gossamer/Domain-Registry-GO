@@ -4,6 +4,7 @@ import (
     "testing"
 
     "registry/server"
+    "registry/epp/eppcom"
     "registry/epp/dbreg/dnssec"
     "registry/epp/dbreg"
     "registry/tests/epptests"
@@ -39,8 +40,18 @@ func TestRegistryServer(t *testing.T) {
     ds_alg := dns.SHA256
     ds := dnskey.ToDS(ds_alg)
 
+    dsrecord := eppcom.DSRecord{}
+    dsrecord.KeyTag = int(ds.KeyTag)
+    dsrecord.Alg = int(ds_alg)
+    dsrecord.DigestType = int(ds.DigestType)
+    dsrecord.Digest = ds.Digest
+    dsrecord.Key.Flags = flags
+    dsrecord.Key.Alg = int(alg)
+    dsrecord.Key.Protocol = protocol
+    dsrecord.Key.Key = pubkey
+
     dbconn.Begin()
-    keyset_id, err := create_keyset.SetDSRecord(int(ds.KeyTag), int(ds_alg), int(ds.DigestType), ds.Digest, 4).SetDNSKey(flags, int(alg), protocol, pubkey).Exec(dbconn)
+    keyset_id, err := create_keyset.SetDSRecord(dsrecord).Exec(dbconn)
     if err != nil {
         dbconn.Rollback()
         t.Error(err)

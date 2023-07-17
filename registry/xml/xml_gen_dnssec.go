@@ -13,27 +13,29 @@ import (
 var secDNSLoc = "urn:ietf:params:xml:ns:secDNS-1.1 secDNS-1.1.xsd"
 var secDNSNS = "urn:ietf:params:xml:ns:secDNS-1.1"
 
+type DsData struct {
+    KeyTag     int   `xml:"secDNS:keyTag"`
+    Alg        int   `xml:"secDNS:alg"`
+    DigestType int   `xml:"secDNS:digestType"`
+    Digest     string   `xml:"secDNS:digest"`
+    KeyData struct {
+        Flags    int   `xml:"secDNS:flags"`
+        Protocol int   `xml:"secDNS:protocol"`
+        Alg      int   `xml:"secDNS:alg"`
+        PubKey   string   `xml:"secDNS:pubKey"`
+    } `xml:"secDNS:keyData"`
+}
+
 type SecDNS struct {
     XMLName  xml.Name `xml:"secDNS:infData"`
     XMLNS    string   `xml:"xmlns:secDNS,attr"`
     Loc      string   `xml:"xsi:schemaLocation,attr,omitempty"`
 
-    DsData struct {
-        KeyTag     int   `xml:"keyTag"`
-        Alg        int   `xml:"alg"`
-        DigestType int   `xml:"digestType"`
-        Digest     string   `xml:"digest"`
-        KeyData struct {
-            Flags    int   `xml:"flags"`
-            Protocol int   `xml:"protocol"`
-            Alg      int   `xml:"alg"`
-            PubKey   string   `xml:"pubKey"`
-        } `xml:"keyData"`
-    } `xml:"dsData"`
+    DsData []DsData `xml:"secDNS:dsData"`
 }
 
 func SecDNSResponse(content interface{}) interface{} {
-    dsrec, ok := content.(*eppcom.DSRecord)
+    dsrecs, ok := content.([]eppcom.DSRecord)
     if !ok {
         return nil
     }
@@ -42,14 +44,19 @@ func SecDNSResponse(content interface{}) interface{} {
         XMLNS:secDNSNS,
         Loc:secDNSLoc,
     }
-    response.DsData.KeyTag = dsrec.KeyTag
-    response.DsData.Alg = dsrec.Alg
-    response.DsData.DigestType = dsrec.DigestType
-    response.DsData.Digest = dsrec.Digest
-    response.DsData.KeyData.Flags = dsrec.Key.Flags
-    response.DsData.KeyData.Protocol = dsrec.Key.Protocol
-    response.DsData.KeyData.Alg = dsrec.Key.Alg
-    response.DsData.KeyData.PubKey = dsrec.Key.Key
+    for _, dsrec := range dsrecs {
+        dsdata := DsData{}
+        dsdata.KeyTag = dsrec.KeyTag
+        dsdata.Alg = dsrec.Alg
+        dsdata.DigestType = dsrec.DigestType
+        dsdata.Digest = dsrec.Digest
+        dsdata.KeyData.Flags = dsrec.Key.Flags
+        dsdata.KeyData.Protocol = dsrec.Key.Protocol
+        dsdata.KeyData.Alg = dsrec.Key.Alg
+        dsdata.KeyData.PubKey = dsrec.Key.Key
+
+        response.DsData = append(response.DsData, dsdata)
+    }
 
     return response
 }
@@ -121,6 +128,44 @@ func parseCreateSecDNS(ctx *xpath.Context) (eppcom.EPPExt, error) {
         return ext, err
     }
     ext.Content = dsrecs
+
+    return ext, nil
+}
+
+func parseUpdateSecDNS(ctx *xpath.Context) (eppcom.EPPExt, error) {
+    var err error
+    ext := eppcom.EPPExt{ExtType:eppcom.EPP_EXT_SECDNS}
+    secupdate := eppcom.SecDNSUpdate{}
+
+    rem_nodes := xpath.NodeList(ctx.Find("secDNS:rem"))
+    add_nodes := xpath.NodeList(ctx.Find("secDNS:add"))
+
+    if len(rem_nodes) > 0 {
+        if err = ctx.SetContextNode(rem_nodes[0]); err != nil {
+            return ext, err
+        }
+        all := xpath.String(ctx.Find("secDNS:all"))
+        if all == "true" {
+            secupdate.RemAll = true
+        } else {
+            secupdate.RemDS, err = parseDsRecs(ctx)
+            if err != nil {
+                return ext, err
+            }
+        }
+    }
+
+    if len(add_nodes) > 0 {
+        if err = ctx.SetContextNode(add_nodes[0]); err != nil {
+            return ext, err
+        }
+        secupdate.AddDS, err = parseDsRecs(ctx)
+        if err != nil {
+            return ext, err
+        }
+    }
+
+    ext.Content = secupdate
 
     return ext, nil
 }

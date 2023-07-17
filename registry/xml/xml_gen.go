@@ -316,8 +316,6 @@ func RegistrarResponse(response *EPPResult) *ResDataS {
 }
 
 func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string {
-    w := &bytes.Buffer{}
-
     v := &EPP{XMLns:EPP_NS, XSI:XSI, Loc:schemaLoc}
     resp := &Response{}
     resp.Result.Code = response.RetCode
@@ -380,6 +378,7 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     resp.TrID.SvTRID = svTRID
     v.Content = resp
 
+    w := &bytes.Buffer{}
     enc := xml.NewEncoder(w)
     enc.Indent(" ", " ")
     if err := enc.Encode(v); err != nil {

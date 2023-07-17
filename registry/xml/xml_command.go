@@ -57,6 +57,7 @@ type UpdateDomain struct {
     AddStatus []string
     RemStatus []string
     Description []string
+    DSRecord *eppcom.DSRecord
 }
 
 type UpdateHost struct {

@@ -111,12 +111,12 @@ func epp_domain_info_impl(ctx *EPPContext, v *xml.InfoDomain) (*EPPResult) {
 
     /* fill EPP extensions */
     if !domain_data.Keysetid.IsNull() {
-        dsrecord, err := dnssec.GetDSRecord(ctx.dbconn, domain_data.Keysetid.Get())
+        dsrecords, err := dnssec.GetDSRecord(ctx.dbconn, domain_data.Keysetid.Get())
         if err != nil {
             ctx.logger.Error(err)
             return &EPPResult{RetCode:EPP_FAILED}
         }
-        res.Ext = append(res.Ext, EPPExt{ExtType:EPP_EXT_SECDNS, Content:dsrecord})
+        res.Ext = append(res.Ext, EPPExt{ExtType:EPP_EXT_SECDNS, Content:dsrecords})
     }
 
     res.Content = domain_data
@@ -236,8 +236,7 @@ func epp_domain_create_impl(ctx *EPPContext, cmd *xml.XMLCommand) (*EPPResult) {
         return &EPPResult{RetCode:2500}
     }
 
-    err = updateHostStates(ctx.dbconn, host_objects)
-    if err != nil {
+    if err = updateHostStates(ctx.dbconn, host_objects); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
@@ -303,13 +302,18 @@ func testNumberOfHosts(ctx *EPPContext, hosts_n int) *EPPResult {
     return nil
 }
 
-func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
+func epp_domain_update_impl(ctx *EPPContext, cmd *xml.XMLCommand) (*EPPResult) {
+    v, ok := cmd.Content.(*xml.UpdateDomain)
+    if !ok {
+        ctx.logger.Error("UpdateDomain conversion failed")
+        return &EPPResult{RetCode:EPP_FAILED}
+    }
     ctx.logger.Info("Domain update", v.Name)
     domain := normalizeDomain(v.Name)
 
-    domain_data, object_states, cmd := get_domain_obj(ctx, domain, true)
-    if cmd != nil {
-        return cmd
+    domain_data, object_states, res := get_domain_obj(ctx, domain, true)
+    if res != nil {
+        return res
     }
 
     err := ctx.dbconn.Begin()
@@ -397,14 +401,31 @@ func epp_domain_update_impl(ctx *EPPContext, v *xml.UpdateDomain) (*EPPResult) {
         update_domain.SetDescription(v.Description)
     }
 
+    if len(cmd.Exts) > 0 {
+        for _, ext := range cmd.Exts {
+            if ext.ExtType == EPP_EXT_SECDNS {
+                 keyset_id, err := updateDomainSecDNS(ctx, domain_data, domain, ext.Content)
+                 if err != nil {
+                     if perr, ok := err.(*dbreg.ParamError); ok {
+                         return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{perr.Error()}}
+                     }   
+                     ctx.logger.Error(err)
+                     return &EPPResult{RetCode:EPP_FAILED}
+                 }
+                 if keyset_id > 0 {
+                     update_domain.SetKeyset(keyset_id)
+                 }
+            }
+        }
+    }
+
     err = update_domain.Exec(ctx.dbconn, domain_data.Id, ctx.session.Regid)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
 
-    err = UpdateObjectStates(ctx.dbconn, domain_data.Id)
-    if err != nil {
+    if err = UpdateObjectStates(ctx.dbconn, domain_data.Id); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:2500}
     }
@@ -571,6 +592,11 @@ func epp_domain_delete_impl(ctx *EPPContext, v *xml.DeleteObject) (*EPPResult) {
     }
     defer ctx.dbconn.Rollback()
 
+    err = dbreg.DeleteDomain(ctx.dbconn, domain_data.Id)
+    if err != nil {
+        ctx.logger.Error(err)
+        return &EPPResult{RetCode:EPP_FAILED}
+    }
     if !domain_data.Keysetid.IsNull() {
         err = dnssec.DeleteKeyset(ctx.dbconn, domain_data.Keysetid.Get())
         if err != nil {
@@ -578,19 +604,11 @@ func epp_domain_delete_impl(ctx *EPPContext, v *xml.DeleteObject) (*EPPResult) {
             return &EPPResult{RetCode:EPP_FAILED}
         }
     }
-
-    err = dbreg.DeleteDomain(ctx.dbconn, domain_data.Id)
-    if err != nil {
+    if err = deleteUnlinkedContacts(ctx, domain_data.Registrant.Id); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
-    err = deleteUnlinkedContacts(ctx, domain_data.Registrant.Id)
-    if err != nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-    err = deleteUnlinkedHosts(ctx, domain_hosts)
-    if err != nil {
+    if err = deleteUnlinkedHosts(ctx, domain_hosts); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }

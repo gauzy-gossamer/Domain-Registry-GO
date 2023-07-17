@@ -7,7 +7,7 @@ import (
     "registry/epp/eppcom"
 )
 
-func GetDSRecord(db *server.DBConn, keyset_id uint64) (*eppcom.DSRecord, error) {
+func GetDSRecord(db *server.DBConn, keyset_id uint64) ([]eppcom.DSRecord, error) {
     var query strings.Builder
 
     query.WriteString("SELECT ds.id as dsid, ds.keytag, ds.alg AS ds_alg, ds.digesttype, ds.digest, ds.maxsiglife, ");
@@ -15,14 +15,24 @@ func GetDSRecord(db *server.DBConn, keyset_id uint64) (*eppcom.DSRecord, error) 
     query.WriteString(" FROM dsrecord ds INNER JOIN dnskey d ON ds.dnskey_id=d.id ");
     query.WriteString("WHERE ds.keysetid = $1::bigint")
 
-    row := db.QueryRow(query.String(), keyset_id)
-    var data eppcom.DSRecord
+    dsrecs := []eppcom.DSRecord{}
 
-    err := row.Scan(&data.Id, &data.KeyTag, &data.Alg, &data.DigestType, &data.Digest, &data.MaxSigLife,
-                    &data.Key.Id, &data.Key.Flags, &data.Key.Protocol, &data.Key.Alg, &data.Key.Key)
+    rows, err := db.Query(query.String(), keyset_id)
     if err != nil {
-        return nil, err 
+        return dsrecs, err 
     }   
+    defer rows.Close()
 
-    return &data, nil 
+    for rows.Next() {
+        data := eppcom.DSRecord{}
+        err := rows.Scan(&data.Id, &data.KeyTag, &data.Alg, &data.DigestType, &data.Digest, &data.MaxSigLife,
+                    &data.Key.Id, &data.Key.Flags, &data.Key.Protocol, &data.Key.Alg, &data.Key.Key)
+        if err != nil {
+            return dsrecs, err 
+        }
+
+        dsrecs = append(dsrecs, data)
+    }
+
+    return dsrecs, nil 
 }
