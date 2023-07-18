@@ -1,5 +1,5 @@
 # Domain-Registry-GO
-Domain registry implemented in Go. The registry is functional but lacks some features (like DNSSEC, admin interfaces), and still needs work.
+Domain registry implemented in Go. The registry is functional but lacks some features (like RDAP, admin interfaces), and still needs work.
 
 The core server could be set up either as a standalone process or behind nginx proxy (see config/nginx.conf).
 
@@ -246,6 +246,134 @@ Now you can use python EPP client to test how registry works:
     </result>
     <trID>
       <svTRID>SV-yOGCVDZdol</svTRID>
+    </trID>
+  </response>
+</epp>
+```
+
+### DNSSEC
+To turn on DNSSEC use "secdns" option in server.conf.
+```python
+>>> from scripts.tests.dsrecord import DSRecord
+>>> secdns = DSRecord().generate_dsrecord('domain-dnssec.ex.com', algorithm=12, digest_algo=1, key='LMgXRHzSbIJGn6i16K+sDjaDf/k1o9DbxScOgEYqYS/rlh2Mf+BRAY3QHPbwoPh2fkDKBroFSRGR7ZYcx+YIQw==')
+>>> client.create_domain('domain-dnssec.ex.com', registrant='test-person', secdns=[secdns])
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <command>
+    <create>
+      <domain:create xmlns:domain="http://www.ripn.net/epp/ripn-domain-1.0" xmlns="http://www.ripn.net/epp/ripn-domain-1.0">
+        <name>domain-dnssec.ex.com</name>
+        <period unit="y">1</period>
+        <registrant>test-person</registrant>
+      </domain:create>
+    </create>
+    <extension>
+      <secDNS:create xmlns:secDNS="urn:ietf:params:xml:ns:secDNS-1.1" xmlns="urn:ietf:params:xml:ns:secDNS-1.1">
+        <secDNS:dsData>
+          <secDNS:keyTag>40692</secDNS:keyTag>
+          <secDNS:alg>12</secDNS:alg>
+          <secDNS:digestType>1</secDNS:digestType>
+          <secDNS:digest>0E936E4E6771EABC7841317CA252A6FA807916C6</secDNS:digest>
+          <secDNS:keyData>
+            <secDNS:flags>257</secDNS:flags>
+            <secDNS:protocol>3</secDNS:protocol>
+            <secDNS:alg>12</secDNS:alg>
+            <secDNS:pubKey>LMgXRHzSbIJGn6i16K+sDjaDf/k1o9DbxScOgEYqYS/rlh2Mf+BRAY3QHPbwoPh2fkDKBroFSRGR7ZYcx+YIQw==</secDNS:pubKey>
+          </secDNS:keyData>
+        </secDNS:dsData>
+      </secDNS:create>
+    </extension>
+  </command>
+</epp>
+
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <response>
+    <result code="1000">
+      <msg>Command completed successfully</msg>
+    </result>
+    <trID>
+      <clTRID>u6b7Ub05VfH1</clTRID>
+      <svTRID>SV-GzXQVLKpbH</svTRID>
+    </trID>
+  </response>
+</epp>
+
+>>> client.info_domain('domain-dnssec.ex.com')
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <command>
+    <info>
+      <domain:info xmlns:domain="http://www.ripn.net/epp/ripn-domain-1.0" xmlns="http://www.ripn.net/epp/ripn-domain-1.0">
+        <name>domain-dnssec.ex.com</name>
+      </domain:info>
+    </info>
+  </command>
+</epp>
+
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <response>
+    <result code="1000">
+      <msg>Command completed successfully</msg>
+    </result>
+    <resData>
+      <domain:infData xmlns:domain="http://www.ripn.net/epp/ripn-domain-1.0" xmlns="http://www.ripn.net/epp/ripn-domain-1.0">
+        <name>domain-dnssec.ex.com</name>
+        <roid>D0000002015-EPP</roid>
+        <status s="serverRenewProhibited" />
+        <registrant>test-person</registrant>
+        <clID>TEST-REG</clID>
+        <crID>TEST-REG</crID>
+        <crDate>2023-07-18T21:13:37Z</crDate>
+        <exDate>2024-07-18T21:13:37Z</exDate>
+      </domain:infData>
+    </resData>
+    <extension>
+      <secDNS:infData xmlns:secDNS="urn:ietf:params:xml:ns:secDNS-1.1" xmlns="urn:ietf:params:xml:ns:secDNS-1.1">
+        <dsData>
+          <keyTag>40692</keyTag>
+          <alg>12</alg>
+          <digestType>1</digestType>
+          <digest>0E936E4E6771EABC7841317CA252A6FA807916C6</digest>
+          <keyData>
+            <flags>257</flags>
+            <protocol>3</protocol>
+            <alg>12</alg>
+            <pubKey>LMgXRHzSbIJGn6i16K+sDjaDf/k1o9DbxScOgEYqYS/rlh2Mf+BRAY3QHPbwoPh2fkDKBroFSRGR7ZYcx+YIQw==</pubKey>
+          </keyData>
+        </dsData>
+      </secDNS:infData>
+    </extension>
+    <trID>
+      <svTRID>SV-hMzSrhhlwQ</svTRID>
+    </trID>
+  </response>
+</epp>
+
+# remove all DNSSEC records
+>>> client.update_domain('domain-dnssec.ex.com', rem_secdns='all')
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <command>
+    <update>
+      <domain:update xmlns:domain="http://www.ripn.net/epp/ripn-domain-1.0" xmlns="http://www.ripn.net/epp/ripn-domain-1.0">
+        <name>domain-dnssec.ex.com</name>
+      </domain:update>
+    </update>
+    <extension>
+      <secDNS:update xmlns:secDNS="urn:ietf:params:xml:ns:secDNS-1.1" xmlns="urn:ietf:params:xml:ns:secDNS-1.1">
+        <secDNS:rem>
+          <secDNS:all>true</secDNS:all>
+        </secDNS:rem>
+      </secDNS:update>
+    </extension>
+  </command>
+</epp>
+
+<epp xmlns="http://www.ripn.net/epp/ripn-epp-1.0">
+  <response>
+    <result code="1000">
+      <msg>Command completed successfully</msg>
+    </result>
+    <trID>
+      <clTRID>u6b7Ub05VfH1</clTRID>
+      <svTRID>SV-GzXQVLKpbH</svTRID>
     </trID>
   </response>
 </epp>
