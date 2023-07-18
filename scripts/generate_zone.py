@@ -47,7 +47,7 @@ class ZoneGenerator():
 
     def generate_records(self):
         self.iterator.start_gen_domains()
-        for (domain, hosts) in self.iterator.get_next_domain():
+        for (domain, hosts, dsrecords) in self.iterator.get_next_domain():
             for ns in hosts:
                 self.fd.write("{}.\tIN\tNS\t{}".format(domain, ns))
                 # if the nameserver's fqdn is already terminated by a dot
@@ -62,15 +62,14 @@ class ZoneGenerator():
                 for addr in hosts[ns]:
                     self.fd.write("%s.\tIN\t%s\t%s\n" %
                             (ns, get_ipaddr_class(addr), addr))
-            '''
+
             for ds in dsrecords:
-                if ds['maxSigLife'] > 0:
-                    ttl = ds['maxSigLife']
-                else:
-                    ttl = ""
-                self.fd.write(f"{domain}. {ttl}\tIN\tDS\t{ds['keyTag']} {ds['alg']}")
-                self.fd.write(f"{ds['digestType']} {ds['digest']}\n")
-            '''
+                #if ds['maxSigLife'] > 0:
+                #    ttl = ds['maxSigLife']
+                #else:
+                ttl = ""
+                self.fd.write(f"{domain}. {ttl}\tIN\tDS\t{ds['keytag']} {ds['alg']} ")
+                self.fd.write(f"{ds['digesttype']} {ds['digest']}\n")
 
 # prepare query and iterate through records
 class ZoneDB():
@@ -112,7 +111,7 @@ class ZoneDB():
         return soa_record
 
     def start_gen_domains(self):
-        zone_query = '''SELECT oreg.name, h.fqdn, a.ipaddr
+        zone_query = '''SELECT d.id, oreg.name, h.fqdn, a.ipaddr
             FROM object_registry oreg 
                INNER JOIN domain_host_map dh on oreg.id=dh.domainid
                JOIN host h on dh.hostid=h.hostid LEFT JOIN host_ipaddr_map a ON (h.hostid = a.hostid)
@@ -121,13 +120,65 @@ class ZoneDB():
             ORDER BY oreg.id;'''
         self.cursor = self.db.cursor()
         self.cursor.execute(zone_query, (self.zoneid,))
+
+        # there are usually far fewer dsrecords than ns records, 
+        # so we pull them with a separate query and merge with main records
+        dnssec_query = '''SELECT d.id, ds.keytag, ds.alg, ds.digesttype, ds.digest
+            FROM domain d JOIN dsrecord ds on ds.keysetid=d.keyset
+            WHERE d.zone = %s ORDER BY d.id'''
+
+        self.cursor2 = self.db.cursor()
+        self.cursor2.execute(dnssec_query, (self.zoneid,))
+        self.dsrecords = []
+        # dsrecords generator
+        self.iter_dnssec = self._iter_dnssec_cursor()
+
+    # get dsrecords for next domain
+    def _iter_dnssec_cursor(self):
+        dsrecords = []
+        cur_domid = 0
+ 
+        while True:
+            row = self.cursor2.fetchone()
+            if row is None:
+                yield dsrecords
+                dsrecords = []
+                continue
+            vals = dict(zip([column[0] for column in self.cursor2.description], row))
+            if cur_domid != 0 and vals['id'] != cur_domid:
+                yield dsrecords
+                dsrecords = []
+            dsrecords.append(vals)
+            cur_domid = vals['id']
+
+    # join domains with dsrecords using merge algorithm
+    def get_next_dnssec(self, domid):
+        if len(self.dsrecords) > 0:
+            if self.dsrecords[0]['id'] == domid:
+                return self.dsrecords
+            if self.dsrecords[0]['id'] > domid:
+                return []
+            self.dsrecords = []
+
+        while True:
+            self.dsrecords = next(self.iter_dnssec)
+            if len(self.dsrecords) == 0 or self.dsrecords[0]['id'] >= domid:
+                break
+        if len(self.dsrecords) > 0 and self.dsrecords[0]['id'] == domid:
+            return self.dsrecords
+
+        return []
         
     def get_next_domain(self):
         cur_domain = None
+        cur_domid = 0
         hosts = {}
-        for (domain, host, ipaddr) in self.cursor:
+        dsrecords = []
+        for (domid, domain, host, ipaddr) in self.cursor:
             if cur_domain != domain:
-                yield (cur_domain, hosts)
+                dsrecords = self.get_next_dnssec(cur_domid)
+                yield (cur_domain, hosts, dsrecords)
+                hosts = {}
 
             if host not in hosts:
                 hosts[host] = []
@@ -135,6 +186,9 @@ class ZoneDB():
                 hosts[host].append(ipaddr)
 
             cur_domain = domain
+            cur_domid = domid
+        dsrecords = self.get_next_dnssec(cur_domid)
+        yield (cur_domain, hosts, dsrecords)
 
 def iter_zones(conn, zone=None):
     c = conn.cursor()
