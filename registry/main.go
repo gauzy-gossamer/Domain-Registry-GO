@@ -53,6 +53,7 @@ func main() {
         serv.RGconf.HTTPConf.Port = *port
     }
 
+    serv.XmlParser.SetServerName(serv.RGconf.ServerName)
     err := serv.XmlParser.SetNamespaces(serv.RGconf.SchemaNs)
     if err != nil {
         log.Fatal(err)

@@ -16,6 +16,10 @@ type EPP struct {
     Content interface{}
 }
 
+type SvcExtension struct {
+    ExtURI []string `xml:"extURI"`
+}
+
 type Greeting struct {
     XMLName   xml.Name `xml:"greeting"`
     SvID string `xml:"svID"`
@@ -24,6 +28,7 @@ type Greeting struct {
         Version string `xml:"version"`
         Lang []string `xml:"lang"`
         ObjURI []string `xml:"objURI"`
+        SvcExtension interface{} `xml:"svcExtension,omitempty"`
     } `xml:"svcMenu"`
 }
 

@@ -36,6 +36,7 @@ var namespaces = map[string]string{"epp":EPP_NS,
 type XMLParser struct {
     schema *xsd.Schema
     secDNS bool
+    server_name string
 }
 
 type CommandError struct {
@@ -92,6 +93,10 @@ func (s *XMLParser) SetNamespaces(schema_ns string) error {
     }
 
     return nil
+}
+
+func (s *XMLParser) SetServerName(server_name string) {
+    s.server_name = server_name
 }
 
 func (s *XMLParser) ReadSchema(schema_path string) {
