@@ -56,6 +56,29 @@ func (n *NullableUint) Get() uint {
     }
 }
 
+type NullableUint64 struct {
+    NullableVal
+}
+
+func (n *NullableUint64) Get() uint64 {
+    if n.null {
+        return 0
+    }
+    switch n.val.(type) {
+        case int:
+            return uint64(n.val.(int))
+        case uint:
+            return uint64(n.val.(uint))
+        case int64:
+            return uint64(n.val.(int64))
+        case uint64:
+            return n.val.(uint64)
+        default:
+            return 0
+
+    }
+}
+
 type NullableBool struct {
     NullableVal
 }

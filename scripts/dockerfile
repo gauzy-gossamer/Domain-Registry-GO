@@ -8,8 +8,7 @@ RUN apt-get update && apt-get install -y \
     cron \
     logrotate \
     bind9 \
-    bind9utils \
-    build-essential libpq-dev
+    bind9utils
 
 COPY . .
 

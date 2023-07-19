@@ -19,10 +19,8 @@ func hostRegistrarHandle(handle string, regid uint) string {
 
 func GetHostObject(db *server.DBConn, host_handle string, regid uint) (HostObj, error) {
     query := "SELECT obr.id, obr.name, h.fqdn FROM object_registry obr " +
-             "INNER JOIN object obj ON obj.id=obr.id " +
-             "INNER JOIN host h ON obj.id = h.hostid " +
-             "WHERE obr.type = get_object_type_id('nsset'::text) and obr.name = $1 and obj.clid = $2 and obr.erdate is null " +
-             "FOR SHARE of obr"
+             "INNER JOIN object obj ON obj.id=obr.id INNER JOIN host h ON obj.id = h.hostid " +
+             "WHERE obr.type = get_object_type_id('nsset'::text) and obr.name = $1 and obj.clid = $2 and obr.erdate is null FOR SHARE of obr"
 
     var host_object HostObj
     row := db.QueryRow(query, host_handle, regid)

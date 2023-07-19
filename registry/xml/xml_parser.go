@@ -35,6 +35,8 @@ var namespaces = map[string]string{"epp":EPP_NS,
 
 type XMLParser struct {
     schema *xsd.Schema
+    secDNS bool
+    server_name string
 }
 
 type CommandError struct {
@@ -44,6 +46,16 @@ type CommandError struct {
 
 func (e *CommandError) Error() string {
     return fmt.Sprintf("command error: %d; %s", e.RetCode, e.Msg)
+}
+
+func (s *XMLParser) SetSecDNS(secDNS bool) {
+    s.secDNS = secDNS
+}
+
+func NewXMLParser(schema string) XMLParser {
+    parser := XMLParser{}
+    parser.ReadSchema(schema)
+    return parser
 }
 
 /* set namespaces from config */
@@ -81,6 +93,10 @@ func (s *XMLParser) SetNamespaces(schema_ns string) error {
     }
 
     return nil
+}
+
+func (s *XMLParser) SetServerName(server_name string) {
+    s.server_name = server_name
 }
 
 func (s *XMLParser) ReadSchema(schema_path string) {
@@ -579,8 +595,42 @@ func parseLogin(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
     return &cmd, nil
 }
 
-func parseCommand(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
-    ctx.SetContextNode(*node)
+func (s *XMLParser) parseExtensions(ctx *xpath.Context, nodes []types.Node, cmd *XMLCommand) error {
+    for _, node := range nodes {
+        if err := ctx.SetContextNode(node); err != nil {
+            return err
+        }
+
+        switch node.NodeName() {
+            case "secDNS:create":
+                if !s.secDNS {
+                    return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg:"secDNS is not supported"}
+                }
+                ext, err := parseCreateSecDNS(ctx)
+                if err != nil {
+                    return err
+                }
+                cmd.Exts = append(cmd.Exts, ext)
+            case "secDNS:update":
+                if !s.secDNS {
+                    return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg:"secDNS is not supported"}
+                }
+                ext, err := parseUpdateSecDNS(ctx)
+                if err != nil {
+                    return err
+                }
+                cmd.Exts = append(cmd.Exts, ext)
+            default:
+                return &CommandError{RetCode:EPP_EXT_UNIMPLEMENTED, Msg: node.NodeName() + " is not supported"}
+
+        }
+    }
+
+    return nil
+}
+
+func (s *XMLParser) parseCommand(ctx *xpath.Context, node types.Node) (*XMLCommand, error) {
+    ctx.SetContextNode(node)
 
     nodes := xpath.NodeList(ctx.Find("epp:*[position()=1]"))
     if len(nodes) != 1 {
@@ -619,6 +669,16 @@ func parseCommand(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
     if err != nil {
         return nil, err
     }
+
+    ctx.SetContextNode(node)
+    extensions := xpath.NodeList(ctx.Find("epp:extension/*"))
+    if len(extensions) > 0 {
+        err = s.parseExtensions(ctx, extensions, cmd)
+        if err != nil {
+            return nil, err
+        }
+    }
+
     cmd.ClTRID = clTRID
 
     return cmd, err
@@ -638,7 +698,7 @@ func (s *XMLParser) ParseMessage(xml_message string) (*XMLCommand, error) {
         return nil, &CommandError{RetCode:EPP_SYNTAX_ERR, Msg:fmt.Sprint(errs)}
     }
 
-    root ,err := doc.DocumentElement()
+    root, err := doc.DocumentElement()
     if err != nil {
         glg.Error(err)
         return nil,err
@@ -651,13 +711,16 @@ func (s *XMLParser) ParseMessage(xml_message string) (*XMLCommand, error) {
     for v, k := range namespaces {
         ctx.RegisterNS(v, k)
     }
+    if s.secDNS {
+        ctx.RegisterNS("secDNS", secDNSNS)
+    }
     nodes := xpath.NodeList(ctx.Find("/epp:epp/epp:*"))
     if len(nodes) != 1 {
         return nil, errors.New("incorrect command")
     }
     switch nodes[0].NodeName() {
         case "command":
-            return parseCommand(ctx, &nodes[0])
+            return s.parseCommand(ctx, nodes[0])
         case "hello":
             var cmd XMLCommand
             cmd.CmdType = EPP_HELLO

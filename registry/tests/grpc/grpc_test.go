@@ -19,18 +19,20 @@ func ensureAllowDate(dbconn *server.DBConn) {
     _, _ = dbconn.Exec("insert into domain_allow_removal_dates(allow_date) values(current_date);")
 }
 
-func initServer(ctx context.Context) (pb.RegistryClient, *server.Server, func()) {
+func initServer(ctx context.Context) (pb.RegistryClient, *epptests.EPPTester, func()) {
     buffer := 101024 * 1024
     lis := bufconn.Listen(buffer)
 
-    serv := epptests.PrepareServer("../../server.conf")
+    tester := epptests.NewEPPTesterConfig("../../server.conf")
+    serv := tester.GetServer()
+
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         log.Printf("error acquiring conn: %v", err)
     }
+    defer dbconn.Close()
 
     ensureAllowDate(dbconn)
-    serv.Sessions.InitSessions(dbconn)
 
     baseServer := grpc.NewServer()
     pb.RegisterRegistryServer(baseServer, pb.NewServer(serv))
@@ -58,21 +60,28 @@ func initServer(ctx context.Context) (pb.RegistryClient, *server.Server, func())
 
     client := pb.NewRegistryClient(conn)
 
-    return client, serv, closer
+    return client, tester, closer
 }
 
 func TestRegistryServer(t *testing.T) {
     ctx := context.Background()
 
-    client, serv, closer := initServer(ctx)
+    client, tester, closer := initServer(ctx)
     defer closer()
+
+    /* call this before LoginSystem to set up sessions */
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }   
+    defer tester.CloseSession()
 
     session, err := client.LoginSystem(ctx, &pb.Empty{})
     if err != nil {
         t.Error("login failed")
     }
 
-    epptests.CreateExpiredDomain(t, serv)
+    _, domain_id := tester.CreateDomain(t)
+    epptests.SetExpiredDomain(t, tester.GetServer(), domain_id)
 
     stream, err := client.GetExpiredDomains(ctx, session)
     if err != nil {

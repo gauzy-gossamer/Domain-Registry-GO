@@ -32,7 +32,8 @@ func getRegistrar(db *server.DBConn) (uint, string, string, string, error) {
 }
 
 func TestEPPLogin(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -100,20 +101,21 @@ func pollAck(t *testing.T, eppc *epp.EPPContext, msgid uint, retcode int, sessio
 }
 
 func TestEPPPoll(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    regid := tester.Regid
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
     defer dbconn.Close()
-
-    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
     eppc := epp.NewEPPContext(serv)
 
@@ -135,8 +137,6 @@ func TestEPPPoll(t *testing.T) {
         t.Error("should be ok")
     }
     pollAck(t, eppc, poll_msg.Msgid, EPP_OK, sessionid) 
-
-    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func infoContact(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoContactData {
@@ -165,7 +165,14 @@ func updateContact(t *testing.T, eppc *epp.EPPContext, fields ContactFields, ret
 }
 
 func TestEPPContact(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -173,16 +180,9 @@ func TestEPPContact(t *testing.T) {
     }
     defer dbconn.Close()
 
-    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
-
     eppc := epp.NewEPPContext(serv)
 
-    test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
+    test_contact := tester.GetExistingContact(t, eppc, dbconn)
 
     _ = infoContact(t, eppc, test_contact, EPP_OK, sessionid)
 
@@ -232,12 +232,17 @@ func TestEPPContact(t *testing.T) {
 
     deleteObject(t, eppc, org_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
     deleteObject(t, eppc, person_handle, EPP_DELETE_CONTACT, EPP_OK, sessionid)
-
-    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func TestEPPCheckContact(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -245,14 +250,9 @@ func TestEPPCheckContact(t *testing.T) {
     }   
     defer dbconn.Close()
 
-    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }   
     eppc := epp.NewEPPContext(serv)
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
-    test_contact := getExistingContact(t, eppc, dbconn, regid, sessionid)
+    test_contact := tester.GetExistingContact(t, eppc, dbconn)
     test_contact2 := "TEST-" + server.GenerateRandString(8)
 
     tests := map[string]int{test_contact:CD_REGISTERED, test_contact2:CD_AVAILABLE, "?domain.":CD_NOT_APPLICABLE}
@@ -270,11 +270,6 @@ func TestEPPCheckContact(t *testing.T) {
         t.Error("should be ok")
     }
     testCheckResults(t, epp_res.Content, tests)
-
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }   
 }
 
 func updateContactStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
@@ -288,20 +283,20 @@ func updateContactStates(t *testing.T, eppc *epp.EPPContext, name string, add_st
 }
 
 func TestEPPContactStates(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }
     defer dbconn.Close()
-
-    regid, _, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
     eppc := epp.NewEPPContext(serv)
 
@@ -321,8 +316,6 @@ func TestEPPContactStates(t *testing.T) {
     updateContactStates(t, eppc, test_contact, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
 
     deleteObject(t, eppc, test_contact, EPP_DELETE_CONTACT, EPP_OK, sessionid)
-
-    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func updateHost(t *testing.T, eppc *epp.EPPContext, name string, add_ips []string, rem_ips []string, retcode int, sessionid uint64) {
@@ -336,7 +329,15 @@ func updateHost(t *testing.T, eppc *epp.EPPContext, name string, add_ips []strin
 }
 
 func TestEPPHost(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    zone := tester.Zone
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -344,12 +345,6 @@ func TestEPPHost(t *testing.T) {
     }
     defer dbconn.Close()
 
-    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
     eppc := epp.NewEPPContext(serv)
 
     test_host := "ns1." + generateRandomDomain(zone) 
@@ -389,11 +384,6 @@ func TestEPPHost(t *testing.T) {
 
     deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
     deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)
-
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
 }
 
 func testCheckResults(t *testing.T, content interface{}, tests map[string]int) {
@@ -416,7 +406,15 @@ func testCheckResults(t *testing.T, content interface{}, tests map[string]int) {
 }
 
 func TestEPPCheckHost(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    zone := tester.Zone
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -424,13 +422,7 @@ func TestEPPCheckHost(t *testing.T) {
     }   
     defer dbconn.Close()
 
-    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }   
     test_host := generateRandomDomain(zone)
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
     tests := map[string]int{"ns1."+test_host:CD_AVAILABLE, "a." + zone:CD_AVAILABLE, "a-domain.nonexistant":CD_AVAILABLE, "?domain." + zone:CD_NOT_APPLICABLE}
 
@@ -449,11 +441,6 @@ func TestEPPCheckHost(t *testing.T) {
         t.Error("should be ok")
     }
     testCheckResults(t, epp_res.Content, tests)
-
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    } 
 }
 
 func updateHostStates(t *testing.T, eppc *epp.EPPContext, name string, add_states []string, rem_states []string, retcode int, sessionid uint64) {
@@ -467,7 +454,15 @@ func updateHostStates(t *testing.T, eppc *epp.EPPContext, name string, add_state
 }
 
 func TestEPPHostStates(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }
+    defer tester.CloseSession()
+    zone := tester.Zone
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -475,14 +470,7 @@ func TestEPPHostStates(t *testing.T) {
     }
     defer dbconn.Close()
 
-    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-
     eppc := epp.NewEPPContext(serv)
-
-    sessionid := fakeSession(t, serv, dbconn, regid)
 
     test_host := "ns1." + generateRandomDomain(zone)
 
@@ -498,6 +486,4 @@ func TestEPPHostStates(t *testing.T) {
     updateHostStates(t, eppc, test_host, []string{}, []string{"clientUpdateProhibited"}, EPP_OK, sessionid)
 
     deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
-
-    logoutSession(t, serv, dbconn, sessionid)
 }

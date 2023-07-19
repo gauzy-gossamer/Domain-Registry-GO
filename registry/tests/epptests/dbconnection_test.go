@@ -8,12 +8,14 @@ import (
 )
 
 func TestTxRetry(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Fatal(err)
     }
+    defer dbconn.Close()
 
     done := make(chan struct{})
 
@@ -34,6 +36,7 @@ func TestTxRetry(t *testing.T) {
         if err != nil {
             t.Fatal(err)
         }
+        defer dbconn2.Close()
         dbconn2.BeginSerializable()
         defer dbconn2.Rollback()
         row := dbconn2.QueryRow("SELECT count(*) FROM testTx")

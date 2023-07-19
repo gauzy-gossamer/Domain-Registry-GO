@@ -66,7 +66,7 @@ func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, 
         }
     } else {
         if cmd.CmdType == EPP_HELLO {
-            return xml.GenerateGreeting()
+            return serv.XmlParser.GenerateGreeting()
         }
 
         /* either get an ssl certificate fingerprint on login or session id otherwise */

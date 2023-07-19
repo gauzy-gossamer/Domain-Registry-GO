@@ -12,12 +12,14 @@ type UpdateDomainDB struct {
     rem_hosts []HostObj
     registrant NullableVal
     description NullableVal
+    keysetid NullableUint64
 }
 
 func NewUpdateDomainDB() UpdateDomainDB {
     obj := UpdateDomainDB{}
     obj.registrant.Set(nil)
     obj.description.Set(nil)
+    obj.keysetid.Set(nil)
     return obj
 }
 
@@ -41,6 +43,11 @@ func (up *UpdateDomainDB) SetRemHosts(rem_hosts []HostObj) *UpdateDomainDB {
     return up
 }
 
+func (up *UpdateDomainDB) SetKeyset(keysetid uint64) *UpdateDomainDB {
+    up.keysetid.Set(keysetid)
+    return up
+}
+
 func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) error {
     err := LockObjectById(db, domainid, "domain")
     if err != nil {
@@ -60,7 +67,7 @@ func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) e
             return err
         }
     }
-    if !up.registrant.IsNull() || !up.description.IsNull() {
+    if !up.registrant.IsNull() || !up.description.IsNull() || !up.keysetid.IsNull() {
         var params []any
         var fields []string
 
@@ -71,6 +78,10 @@ func (up *UpdateDomainDB) Exec(db *server.DBConn, domainid uint64, regid uint) e
         if !up.description.IsNull() {
             params = append(params, PackJson(up.description.Get().([]string)))
             fields = append(fields, "description = $" + strconv.Itoa(len(params)) + "::jsonb")
+        }
+        if !up.keysetid.IsNull() {
+            params = append(params, up.keysetid.Get())
+            fields = append(fields, "keyset = $" + strconv.Itoa(len(params)) + "::bigint")
         }
         fields_str := strings.Join(fields, ", ")
         params = append(params, domainid)
