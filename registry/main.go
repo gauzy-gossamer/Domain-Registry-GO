@@ -53,10 +53,12 @@ func main() {
         serv.RGconf.HTTPConf.Port = *port
     }
 
+    serv.XmlParser.SetServerName(serv.RGconf.ServerName)
     err := serv.XmlParser.SetNamespaces(serv.RGconf.SchemaNs)
     if err != nil {
         log.Fatal(err)
     }
+    serv.XmlParser.SetSecDNS(serv.RGconf.SecDNS)
     serv.XmlParser.ReadSchema(serv.RGconf.SchemaPath)
     serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
     if err != nil {

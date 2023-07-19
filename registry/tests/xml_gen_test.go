@@ -8,7 +8,8 @@ import (
 )
 
 func TestSimpleResponse(t *testing.T) {
-    response := xml.GenerateGreeting()
+    xmlparser := prepareParser()
+    response := xmlparser.GenerateGreeting()
     if response == "" {
         t.Error(response)
     }

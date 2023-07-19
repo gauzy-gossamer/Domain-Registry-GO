@@ -25,7 +25,15 @@ func infoRegistrar(t *testing.T, eppc *epp.EPPContext, name string, retcode int,
 }
 
 func TestEPPRegistrar(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }   
+    defer tester.CloseSession()
+    reg_handle := tester.RegHandle
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -33,11 +41,6 @@ func TestEPPRegistrar(t *testing.T) {
     }
     defer dbconn.Close()
 
-    regid, reg_handle, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
-    sessionid := fakeSession(t, serv, dbconn, regid)
     eppc := epp.NewEPPContext(serv)
 
     /* no session */
@@ -47,11 +50,6 @@ func TestEPPRegistrar(t *testing.T) {
     _ = infoRegistrar(t, eppc, nonexistant_registrar, EPP_OBJECT_NOT_EXISTS, sessionid)
 
     _ = infoRegistrar(t, eppc, reg_handle, EPP_OK, sessionid)
-
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
 }
 
 func updateRegistrar(t *testing.T, eppc *epp.EPPContext, name string, update_registrar *xml.UpdateRegistrar, add_ips []string, rem_ips []string, retcode int, sessionid uint64) {
@@ -76,7 +74,16 @@ func findAddress(ipaddrs []string, addr string) bool {
 }
 
 func TestEPPUpdateRegistrar(t *testing.T) {
-    serv := prepareServer()
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    if err := tester.SetupSession(); err != nil {
+        t.Error("failed to setup ", err)
+    }   
+    defer tester.CloseSession()
+    regid := tester.Regid
+    reg_handle := tester.RegHandle
+    sessionid := tester.GetSessionid()
 
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
@@ -84,16 +91,10 @@ func TestEPPUpdateRegistrar(t *testing.T) {
     }
     defer dbconn.Close()
 
-    regid, reg_handle, _, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }
     _, reg_handle2, _, err := getRegistrarAndZone(dbconn, regid)
     if err != nil {
         t.Error("failed to get registrar")
     }
-    sessionid := fakeSession(t, serv, dbconn, regid)
-
     eppc := epp.NewEPPContext(serv)
 
     insert_addr := "127.1.0.1"
@@ -128,9 +129,4 @@ func TestEPPUpdateRegistrar(t *testing.T) {
         t.Error("expected www ", set_www, reg_info.WWW)
     }
     updateRegistrar(t, eppc, reg_handle, nil, []string{}, []string{insert_addr}, EPP_OK, sessionid)
-
-    err = serv.Sessions.LogoutSession(dbconn, sessionid)
-    if err != nil {
-        t.Error("logout failed")
-    }
 }

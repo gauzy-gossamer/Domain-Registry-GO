@@ -17,6 +17,7 @@ type XMLCommand struct {
     ClTRID string
     SvTRID string
     Content interface{}
+    Exts []eppcom.EPPExt
 }
 
 type CheckObject struct {
@@ -56,6 +57,7 @@ type UpdateDomain struct {
     AddStatus []string
     RemStatus []string
     Description []string
+    DSRecord *eppcom.DSRecord
 }
 
 type UpdateHost struct {

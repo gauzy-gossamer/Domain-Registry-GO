@@ -16,6 +16,10 @@ type EPP struct {
     Content interface{}
 }
 
+type SvcExtension struct {
+    ExtURI []string `xml:"extURI"`
+}
+
 type Greeting struct {
     XMLName   xml.Name `xml:"greeting"`
     SvID string `xml:"svID"`
@@ -24,6 +28,7 @@ type Greeting struct {
         Version string `xml:"version"`
         Lang []string `xml:"lang"`
         ObjURI []string `xml:"objURI"`
+        SvcExtension interface{} `xml:"svcExtension,omitempty"`
     } `xml:"svcMenu"`
 }
 
@@ -252,6 +257,11 @@ type MsgQ struct {
     Msg     string  `xml:"msg"`
 }
 
+type Extension struct {
+    XMLName xml.Name `xml:"extension"`
+    Content interface{}
+}
+
 type Response struct {
     XMLName  xml.Name `xml:"response"`
     Result struct {
@@ -261,6 +271,7 @@ type Response struct {
     } `xml:"result"`
     MsgQ interface{}
     ResData interface{}
+    Ext []Extension
     TrID struct {
         ClTRID   string   `xml:"clTRID,omitempty"`
         SvTRID   string   `xml:"svTRID"`

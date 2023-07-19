@@ -7,14 +7,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from multiprocessing import Pool
 
-from eppy_ripn import create_client
+from epp_client import create_epp_client
 
 settings = {
     'registrar': "TEST-REG",
-    'passwd':"passwd",
-    'test_contact':"TEST-CONTACT6",
+    'passwd':"password",
+    'test_contact':"test-person",
     'test_host':'ns1.syst.test.com',
-    'zone':'.test.com',
+    'zone':'.ex.com',
 }
 
 def assert_retcode(result, code):
@@ -47,7 +47,7 @@ def run_test(n):
     cert = "client.crt"
     key = "client.key"
     client = create_client(settings['registrar'], settings['passwd'], lang='en',
-                    cert=cert, key=key, server='localhost', port=8081, print_commands=False)
+                    cert=cert, key=key, server='localhost', port=8090, print_commands=False)
 
     completed = 0
     generated_domain = id_generator() + settings['zone']

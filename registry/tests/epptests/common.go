@@ -5,10 +5,108 @@ import (
     "context"
     "registry/server"
     "registry/epp"
+    "registry/epp/dbreg"
+    "registry/epp/dbreg/contact"
     . "registry/epp/eppcom"
     "registry/xml"
     "github.com/jackc/pgtype"
 )
+
+type EPPTester struct {
+    serv *server.Server
+    sessionid uint64
+    Regid uint
+    RegHandle string
+    Zone string
+}
+
+func NewEPPTester() *EPPTester {
+    epp := &EPPTester{}
+    epp.serv = PrepareServer("../../server.conf")
+    return epp
+}
+
+func NewEPPTesterConfig(config string) *EPPTester {
+    epp := &EPPTester{}
+    epp.serv = PrepareServer(config)
+    return epp
+}
+
+func (e *EPPTester) SetupSession() error {
+    dbconn, err := server.AcquireConn(e.serv.Pool, server.NewLogger(""))
+    if err != nil {
+        return err   
+    }
+
+    defer dbconn.Close()
+
+    regid, reg_handle, zone, err := getRegistrarAndZone(dbconn, 0)
+    if err != nil {
+        return err
+    }
+    e.Regid = regid
+    e.RegHandle = reg_handle
+    e.Zone = zone
+
+    e.serv.Sessions.InitSessions(dbconn)
+    sessionid, err := e.serv.Sessions.LoginSession(dbconn, regid, LANG_EN)
+    e.sessionid = sessionid
+    return err
+}
+
+func (e *EPPTester) CloseSession() error {
+    dbconn, err := server.AcquireConn(e.serv.Pool, server.NewLogger(""))
+    if err != nil {
+        return err   
+    }
+    return e.serv.Sessions.LogoutSession(dbconn, e.sessionid)
+}
+
+func (e *EPPTester) GetServer() *server.Server {
+    return e.serv
+}
+
+func (e *EPPTester) GetSessionid() uint64 {
+    return e.sessionid
+}
+
+func (e *EPPTester) GetExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn) string {
+    return getExistingContact(t, eppc, db, e.Regid, e.sessionid)
+}
+
+func (e *EPPTester) InfoDomain(t *testing.T, domain string) *InfoDomainData {
+    dbconn, err := server.AcquireConn(e.serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+
+    eppc := epp.NewEPPContext(e.serv)
+    info_domain := infoDomain(t, eppc, domain, EPP_OK, e.sessionid)
+
+    return info_domain
+}
+
+func (e *EPPTester) DeleteDomain(t *testing.T, eppc *epp.EPPContext, domain string) {
+    deleteObject(t, eppc, domain, EPP_DELETE_DOMAIN, EPP_OK, e.sessionid)
+}
+
+func (e *EPPTester) CreateDomain(t *testing.T) (string, uint64) {
+    dbconn, err := server.AcquireConn(e.serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }   
+    defer dbconn.Close()
+    test_domain := generateRandomDomain(e.Zone)
+
+    eppc := epp.NewEPPContext(e.serv)
+    contact_name := e.GetExistingContact(t, eppc, dbconn)
+    createDomain(t, eppc, test_domain, contact_name, EPP_OK, e.sessionid)
+
+    domain_data := infoDomain(t, eppc, test_domain, EPP_OK, e.sessionid)
+
+    return test_domain, domain_data.Id
+}
 
 type Logger struct {
 }
@@ -34,10 +132,6 @@ func PrepareServer(config string) *server.Server {
     serv.Sessions.MaxRegistrarSessions = serv.RGconf.MaxRegistrarSessions
 
     return &serv
-}
-
-func prepareServer() *server.Server {
-    return PrepareServer("../../server.conf")
 }
 
 func getRegistrarAndZone(db *server.DBConn, exclude_reg uint) (uint, string, string, error) {
@@ -155,31 +249,16 @@ func infoDomain(t *testing.T, eppc *epp.EPPContext, name string, retcode int, se
     return nil 
 }
 
-func CreateExpiredDomain(t *testing.T, serv *server.Server) {
+func SetExpiredDomain(t *testing.T, serv *server.Server, domain_id uint64) {
     dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
     if err != nil {
         t.Error("failed acquire conn")
     }   
     defer dbconn.Close()
-    regid, _, zone, err := getRegistrarAndZone(dbconn, 0)
-    if err != nil {
-        t.Error("failed to get registrar")
-    }   
-    test_domain := generateRandomDomain(zone)
-    sessionid := fakeSession(t, serv, dbconn, regid)
-
-    eppc := epp.NewEPPContext(serv)
-    contact_name := getExistingContact(t, eppc, dbconn, regid, sessionid)
-    createDomain(t, eppc, test_domain, contact_name, EPP_OK, sessionid)
-
-    domain_data := infoDomain(t, eppc, test_domain, EPP_OK, sessionid)
-
-    _, err = SetExpiredExpdate(dbconn, domain_data.Id)
+    _, err = SetExpiredExpdate(dbconn, domain_id)
     if err != nil {
         t.Errorf("set expired failed: %v", err)
     }   
-
-    logoutSession(t, serv, dbconn, sessionid)
 }
 
 func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, regid uint, sessionid uint64) string {
@@ -192,6 +271,9 @@ func getExistingContact(t *testing.T, eppc *epp.EPPContext, db *server.DBConn, r
         contact_name = "TEST-CONTACT1"
         create_org := getCreateContact(contact_name, CONTACT_ORG)
         createContact(t, eppc, create_org, EPP_OK, sessionid)
+        /* set serverDeleteProhibited, so it doesnt get removed when domains are */
+        contactid, _ := contact.GetContactIdByHandle(db, contact_name, regid)
+        _, _ = dbreg.CreateObjectStateRequest(db, contactid, 1)
 
         //t.Error(err)
     }

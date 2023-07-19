@@ -14,6 +14,7 @@ const (
     EPP_PARAM_RANGE_ERR = 2004 // parameter is out of boundaries
     EPP_PARAM_ERR = 2005 // parameter value syntax error
 
+    EPP_EXT_UNIMPLEMENTED = 2103 // unimplemented extension
     EPP_BILLING_FAILURE = 2104  // domain billing failure
     EPP_NOT_ELIGIBLE_FOR_RENEW =  2105    // Object is not eligible for renewal
     EPP_NOT_ELIGIBLE_FOR_TRANSFER = 2106 // Object is not eligible for transfer  

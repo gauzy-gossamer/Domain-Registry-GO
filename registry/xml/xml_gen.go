@@ -316,8 +316,6 @@ func RegistrarResponse(response *EPPResult) *ResDataS {
 }
 
 func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string {
-    w := &bytes.Buffer{}
-
     v := &EPP{XMLns:EPP_NS, XSI:XSI, Loc:schemaLoc}
     resp := &Response{}
     resp.Result.Code = response.RetCode
@@ -363,6 +361,14 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
         }
     }
 
+    if len(response.Ext) > 0 {
+        for _, ext := range response.Ext {
+            if ext.ExtType == EPP_EXT_SECDNS {
+                resp.Ext = append(resp.Ext, Extension{Content:SecDNSResponse(ext.Content)})
+            }
+        }
+    }
+
     if response.CmdType == EPP_POLL_REQ {
         if response.Content != nil {
             resp.MsgQ = PollReqResponse(response)
@@ -372,6 +378,7 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     resp.TrID.SvTRID = svTRID
     v.Content = resp
 
+    w := &bytes.Buffer{}
     enc := xml.NewEncoder(w)
     enc.Indent(" ", " ")
     if err := enc.Encode(v); err != nil {
@@ -380,12 +387,12 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     return w.String()
 }
 
-func GenerateGreeting() string {
+func (s *XMLParser) GenerateGreeting() string {
     w := &bytes.Buffer{}
 
     v := &EPP{XMLns:EPP_NS, XSI:XSI, Loc:schemaLoc}
     greeting := &Greeting{}
-    greeting.SvID = "RIPN-EPP Server"
+    greeting.SvID = s.server_name
     greeting.SvDate = time.Now().UTC().Format(time.RFC3339)
     greeting.SvcMenu.Version = "1.0"
     greeting.SvcMenu.Lang = []string{"en"}
@@ -395,6 +402,11 @@ func GenerateGreeting() string {
         objURI = append(objURI, val)
     }
     greeting.SvcMenu.ObjURI = objURI
+
+    if s.secDNS {
+        greeting.SvcMenu.SvcExtension = SvcExtension{ExtURI:[]string{secDNSNS}}
+    }
+
     v.Content = greeting
 
     enc := xml.NewEncoder(w)

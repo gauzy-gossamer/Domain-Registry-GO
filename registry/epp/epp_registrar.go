@@ -128,7 +128,7 @@ func epp_registrar_update_impl(ctx *EPPContext, v *xml.UpdateRegistrar) *EPPResu
         update_reg.SetFax(v.Fax)
     }
 
-    err = update_reg.Exec(ctx.dbconn, registrar_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
+    err = update_reg.Exec(ctx.dbconn, registrar_data.ObjectID, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}

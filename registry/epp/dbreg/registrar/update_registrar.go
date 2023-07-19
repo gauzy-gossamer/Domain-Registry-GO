@@ -55,8 +55,8 @@ func (u *UpdateRegistrar) SetEmails(emails []string) *UpdateRegistrar {
     return u
 }
 
-func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint, add_addrs []string, rem_addrs []string) error {
-    err := dbreg.LockObjectById(db, registrarid, "registrar")
+func (u *UpdateRegistrar) Exec(db *server.DBConn, objectid uint64, regid uint, add_addrs []string, rem_addrs []string) error {
+    err := dbreg.LockObjectById(db, objectid, "registrar")
     if err != nil {
         return err
     }
@@ -87,7 +87,7 @@ func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint
 
     if len(params) > 0 {
         fields_str := strings.Join(fields, ", ")
-        params = append(params, registrarid)
+        params = append(params, regid)
 
         _, err = db.Exec("UPDATE registrar SET " + fields_str + " WHERE id = $"+strconv.Itoa(len(params))+"::integer", params...)
         if err != nil {
@@ -98,7 +98,7 @@ func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint
     for _, ipaddr := range add_addrs {
         query := "INSERT INTO registrar_ipaddr_map(registrarid, ipaddr) " +
                  "VALUES($1::integer, $2::inet)"
-        _, err = db.Exec(query, registrarid, ipaddr)
+        _, err = db.Exec(query, regid, ipaddr)
         if err != nil {
             return err
         }
@@ -107,13 +107,13 @@ func (u *UpdateRegistrar) Exec(db *server.DBConn, registrarid uint64, regid uint
     for _, ipaddr := range rem_addrs {
         query := "DELETE FROM registrar_ipaddr_map " +
                  "WHERE registrarid = $1::integer and ipaddr = $2::inet"
-        _, err = db.Exec(query, registrarid, ipaddr)
+        _, err = db.Exec(query, regid, ipaddr)
         if err != nil {
             return err
         }
     }
 
-    err = dbreg.UpdateObject(db, registrarid, regid)
+    err = dbreg.UpdateObject(db, objectid, regid)
 
     return err
 }

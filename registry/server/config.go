@@ -49,6 +49,10 @@ type RegConfig struct {
     GrpcHost string
     ChargeOperations bool
     CronSchedule string
+    /* whether secDNS extension is on or off */
+    SecDNS bool
+    /* server name in greetings message */
+    ServerName string
 }
 
 type ConfigVal struct {
@@ -161,6 +165,8 @@ func (r *RegConfig) LoadConfig(config_path string)  {
         {"ChargeOperations", "epp_operations_charging", false, true},
         {"CronSchedule", "cron_schedule", "", false},
         {"MaxValueList", "max_value_list", 15, false},
+        {"SecDNS", "secdns", false, false},
+        {"ServerName", "server_name", "RIPN-EPP Server", false},
     })
 
     parseSection(cfg, "http", &r.HTTPConf, []ConfigVal {

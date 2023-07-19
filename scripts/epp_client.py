@@ -196,6 +196,9 @@ class RipnEpp():
         cmd.period = {'@unit':'y', '_text':'1'}
         if authinfo is not None:
             cmd.authInfo = {'pw':authinfo}
+        if secdns is not None:
+            cmd.add_secdns_data(secdns)
+
         return self._client_send(cmd)
 
     def renew_domain(self, domain: str, curExpDate) -> dict:
@@ -225,6 +228,23 @@ class RipnEpp():
 
         if authinfo is not None:
             cmd.chg = {'authInfo':{'pw':authinfo}}
+
+        secdns = {}
+        if add_secdns is not None:
+            if type(add_secdns) is not list:
+                raise ValueError("incorrect add_secdns value")
+
+            secdns['add'] = add_secdns
+        if rem_secdns is not None:
+            if type(rem_secdns) is not list:
+                if rem_secdns != 'all':
+                    raise ValueError("incorrect rem_secdns value")
+                secdns['rem'] = [{'type':'all', 'value':'true'}]
+            else:
+                secdns['rem'] = rem_secdns
+
+        if len(secdns) > 0:
+            cmd.add_secdns_data(secdns)
 
         return self._client_send(cmd)
 
