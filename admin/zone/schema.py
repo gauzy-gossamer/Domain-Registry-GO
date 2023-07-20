@@ -60,3 +60,9 @@ class ZonePriceList(BaseModel):
     operation: str
     valid_from: date
     price: float
+
+class DomainChecker(BaseModel):
+    """ domain checker """
+    id: Optional[int]
+    name: str
+    description: Optional[str]

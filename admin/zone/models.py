@@ -59,3 +59,19 @@ enum_operation_table = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("operation", sqlalchemy.String(64)),
 )
+
+enum_domain_checker_table = sqlalchemy.Table(
+    "enum_domain_name_validation_checker",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("name", sqlalchemy.String),
+    sqlalchemy.Column("description", sqlalchemy.String),
+)
+
+zone_domain_checker_map_table = sqlalchemy.Table(
+    "zone_domain_name_validation_checker_map",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
+    sqlalchemy.Column("checker_id", sqlalchemy.Integer),
+    sqlalchemy.Column("zone_id", sqlalchemy.Integer),
+)

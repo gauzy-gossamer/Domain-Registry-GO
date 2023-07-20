@@ -56,3 +56,25 @@ async def get_zone_pricelist(zone_id : int):
 @router.post("/zones/{zone_id}/pricelist", response_model=schema.ZonePriceList)
 async def add_zone_pricelist(zone_id : int, post : schema.ZonePriceList): 
     return await zone_funcs.add_zone_pricelist(zone_id, post)
+
+@router.get("/domaincheckers", response_model=list[schema.DomainChecker])
+async def get_domain_checkers(): 
+    return await zone_funcs.get_domain_checkers()
+
+@router.get("/domaincheckers/{zone_id}", response_model=list[schema.DomainChecker])
+async def get_domain_checkers(zone_id : int):
+    return await zone_funcs.get_domain_checkers(zone_id)
+
+@router.post("/domaincheckers/{zone_id}", response_model=list[schema.DomainChecker])
+async def add_domain_checker(zone_id : int, post: schema.DomainChecker):
+    try:
+        return await zone_funcs.add_domain_checker(zone_id, post.name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+@router.delete("/domaincheckers/{zone_id}", response_model=list[schema.DomainChecker])
+async def del_domain_checker(zone_id : int, post: schema.DomainChecker):
+    try:
+        return await zone_funcs.del_domain_checker(zone_id, post.name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

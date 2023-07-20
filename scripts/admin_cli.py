@@ -17,7 +17,7 @@ class AdminAPI():
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                 if method == 'get':
                     async with session.request(method, path, params=params) as response:
-                        data = await response.json()
+                        data = await response.json(content_type=None)
                 else:
                     async with session.request(method, path, json=params) as response:
                         data = await response.json(content_type=None)
@@ -65,6 +65,18 @@ class AdminAPI():
 
     async def set_zone_pricelist(self, zoneid : int, operation : str, price : float, valid_from : str):
         return await self._call(f"/zones/{zoneid}/pricelist", {'operation':operation, 'price':price, 'valid_from':valid_from}, method='post')
+
+    async def get_domain_checkers(self, zoneid: int = None):
+        if zoneid is None:
+            return await self._call(f"/domaincheckers/", {})
+        else:
+            return await self._call(f"/domaincheckers/{zoneid}", {})
+
+    async def add_domain_checker(self, zoneid: int, checker: str):
+        return await self._call(f"/domaincheckers/{zoneid}", {'name':checker}, method='post')
+
+    async def del_domain_checker(self, zoneid: int, checker: str):
+        return await self._call(f"/domaincheckers/{zoneid}", {'name':checker}, method='delete')
 
     async def list_registrars(self, handle : str = None):
         params = {}
@@ -116,6 +128,13 @@ async def get_zone_id(admapi : AdminAPI, zone : str) -> int:
 
     return zones[0]['id']
 
+def print_checkers(domain_checkers):
+    if 'detail' in domain_checkers:
+        print(domain_checkers['detail'])
+        return
+    for dcheck in domain_checkers:
+        print(f"{dcheck['name']}\t{dcheck['description']}")
+
 async def main() -> None:
     parser = argparse.ArgumentParser()
 
@@ -135,6 +154,7 @@ async def main() -> None:
     parser.add_argument('--name',  type=str, default=None, help="registrar name")
     parser.add_argument('--system',  type=bool, default=False, help="if registrar is a system registrar")
 
+    # zone functions
     parser.add_argument('--list-zones', dest='list_zone', action='store_true', default=False, help="list zone")
     parser.add_argument('--add-zone', dest='add_zone', action='store_true', default=False, help="add zone: --add-zone --zone fqdn")
     parser.add_argument('--zone-soa', dest='zone_soa', action='store_true', default=False, help="view zone soa: --zone-soa --zone fqdn")
@@ -144,6 +164,11 @@ async def main() -> None:
     parser.add_argument('--del-zone-ns', dest='del_zone_ns', action='store_true', default=False, help="del zone ns: --del-zone-ns --zone fqdn --fqdn FQDN")
     parser.add_argument('--zone-pricelist', dest='zone_pricelist', action='store_true', default=False, help="list zone price list: --zone-pricelist --zone fqdn")
     parser.add_argument('--zone-set-price', dest='zone_set_price', action='store_true', default=False, help="set zone price: --zone-set-price --zone ZONE --operation CreateDomain --price 0")
+
+    parser.add_argument('--domain-checkers', dest='domain_checkers', action='store_true', default=False, help="get zone domain checkers: --domain-checkers [--zone ZONE]")
+    parser.add_argument('--add-domain-checker', dest='add_domain_checker', action='store_true', default=False, help="add zone domain checkers: --add-domain-checker --zone ZONE --checker CHECKER")
+    parser.add_argument('--del-domain-checker', dest='del_domain_checker', action='store_true', default=False, help="delete zone domain checkers: --del-domain-checker --zone ZONE --checker CHECKER")
+    parser.add_argument('--checker',  type=str, default=None, help="zone checker name")
 
     parser.add_argument('--zone',  type=str, default=None, help="zone fqdn")
     parser.add_argument('--operation',  type=str, default=None, help="price list operation")
@@ -220,6 +245,24 @@ async def main() -> None:
         zone_id = await get_zone_id(admapi, args.zone)
         pricelist = await admapi.set_zone_pricelist(zone_id, args.operation, args.price, args.valid_from)
         print(pricelist)
+
+    # zone checkers
+    if args.domain_checkers:
+        zone_id = None
+        if args.zone is not None:
+            zone_id = await get_zone_id(admapi, args.zone)
+        domain_checkers = await admapi.get_domain_checkers(zone_id)
+        print_checkers(domain_checkers)
+
+    if args.add_domain_checker:
+        zone_id = await get_zone_id(admapi, args.zone)
+        domain_checkers = await admapi.add_domain_checker(zone_id, args.checker)
+        print_checkers(domain_checkers)
+
+    if args.del_domain_checker:
+        zone_id = await get_zone_id(admapi, args.zone)
+        domain_checkers = await admapi.del_domain_checker(zone_id, args.checker)
+        print_checkers(domain_checkers)
 
     # registrar commands
     if args.list_registrars:
