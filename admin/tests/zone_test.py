@@ -101,3 +101,25 @@ def test_zone_ns(temp_db):
         assert response.status_code == 200
         zone_ns_val = response.json()
         assert len(zone_ns_val) == 0
+
+def test_zone_domain_checks(temp_db):
+    request_data = {"fqdn":"example-dcheck.com", "ex_period_min":12, "ex_period_max":12}
+    with TestClient(app) as client:
+        response = client.post("/zones",  json=request_data)
+        assert response.status_code == 200
+        created_zone = response.json()
+
+        request_data = {'name':'nonexistant-checker'}
+        response = client.post("/domaincheckers/{}".format(created_zone['id']),  json=request_data)
+        assert response.status_code != 200, response
+
+        response = client.get("/domaincheckers")
+        assert response.status_code == 200, response
+        checkers = response.json()
+        request_data = {'name':checkers[0]['name']}
+
+        response = client.post("/domaincheckers/{}".format(created_zone['id']),  json=request_data)
+        assert response.status_code == 200, response
+
+        response = client.request("delete", "/domaincheckers/{}".format(created_zone['id']), json=request_data)
+        assert response.status_code == 200, response

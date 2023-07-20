@@ -1,7 +1,7 @@
 from models.database import database
 
 import zone.schema as schema
-from zone.models import zones_table, zone_soa_table, zone_ns_table, price_list_table, enum_operation_table
+from zone.models import zones_table, zone_soa_table, zone_ns_table, price_list_table, enum_operation_table, enum_domain_checker_table, zone_domain_checker_map_table
 
 async def create_zone(zone : schema.Zone) -> dict:
     query = zones_table.insert().values(
@@ -121,3 +121,41 @@ async def del_zone_ns(zone_id : int, zone_ns : schema.ZoneNs):
     await database.execute(query)
 
     return await get_zone_ns(zone_id)
+
+async def get_domain_checkers(zone_id:int = None):
+    query = enum_domain_checker_table.select().with_only_columns(
+        enum_domain_checker_table.c.name, enum_domain_checker_table.c.description
+    )
+    if zone_id is not None:
+        query = query.join(
+            zone_domain_checker_map_table, zone_domain_checker_map_table.c.checker_id == enum_domain_checker_table.c.id
+        ).filter(zone_domain_checker_map_table.c.zone_id == zone_id)
+
+    return await database.fetch_all(query)
+
+async def get_checker_obj(checker: str):
+    query = enum_domain_checker_table.select().filter(enum_domain_checker_table.c.name == checker)
+    checker_obj = await database.fetch_one(query)
+    if checker_obj is None:
+        raise Exception(f"{checker} not found")
+    return checker_obj
+
+async def add_domain_checker(zone_id: int, checker: str):
+    checker_obj = await get_checker_obj(checker)
+    query = zone_domain_checker_map_table.insert().values(
+        zone_id = zone_id,
+        checker_id = checker_obj.id,
+    )
+    await database.execute(query)
+
+    return await get_domain_checkers(zone_id)
+
+async def del_domain_checker(zone_id: int, checker: str):
+    checker_obj = await get_checker_obj(checker)
+    query = zone_domain_checker_map_table.delete().where(
+        zone_domain_checker_map_table.c.zone_id == zone_id,
+        zone_domain_checker_map_table.c.checker_id == checker_obj.id,
+    )
+    await database.execute(query)
+
+    return await get_domain_checkers(zone_id)

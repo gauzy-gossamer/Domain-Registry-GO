@@ -64,15 +64,106 @@ func TestRegexpMatch(t *testing.T) {
     }
 }
 
-func TestZoneSpecific(t *testing.T) {
+func TestIDNZoneSpecific(t *testing.T) {
+    dbconn := prepareDB()
+    domain_checker := epp.NewDomainChecker()
+
     domains := map[string]bool{
         "domain.net.ru":true,
         "xn--b1agh1afp.ru":true,
         "xn--b1a+agh1afp.ru":false,
     }
+    domain_checker.SetZoneTests(1, []string{"dncheck_idna"})
+
+    for domain, expected := range domains {
+        t.Run(domain, func(t *testing.T) {
+            result, err := domain_checker.CheckZoneSpecificTests(dbconn, domain, 1)
+            if err != nil {
+                t.Error("zone test failed ", err)
+            }
+            if result != expected {
+                t.Error("zone test incorrect ", domain)
+            }
+        })
+    }
+
+    domains = map[string]bool{
+        "domain.ex.com":true,
+        "xn--b1agh1afp.ex.com":false,
+        "xn--b1a+agh1afp.ex.com":false,
+    }
+    domain_checker.SetZoneTests(1, []string{"dncheck_no_idn_punycode", "nonexistant"})
+
+    for domain, expected := range domains {
+        t.Run(domain, func(t *testing.T) {
+            result, err := domain_checker.CheckZoneSpecificTests(dbconn, domain, 1)
+            if err != nil {
+                t.Error("zone test failed ", err)
+            }
+            if result != expected {
+                t.Error("zone test incorrect ", domain)
+            }
+        })
+    }
+}
+
+func TestSizeZoneSpecific(t *testing.T) {
     dbconn := prepareDB()
     domain_checker := epp.NewDomainChecker()
-    domain_checker.SetZoneTests(1, []string{"dncheck_idna"})
+    domains := map[string]bool{
+        "domain.ex.com":true,
+        "p.com":false,
+        "1.com":false,
+        "12.com":true,
+    }
+    domain_checker.SetZoneTests(1, []string{"dncheck_no_single_character"})
+
+    for domain, expected := range domains {
+        t.Run(domain, func(t *testing.T) {
+            result, err := domain_checker.CheckZoneSpecificTests(dbconn, domain, 1)
+            if err != nil {
+                t.Error("zone test failed ", err)
+            }
+            if result != expected {
+                t.Error("zone test incorrect ", domain)
+            }
+        })
+    }
+}
+
+func TestHyphensZoneSpecific(t *testing.T) {
+    dbconn := prepareDB()
+    domain_checker := epp.NewDomainChecker()
+    domains := map[string]bool{
+        "domain.ex.com":true,
+        "p.com":true,
+        "pp--1.com":false,
+        "pp-1.com":true,
+        "ppp--1.com":true,
+        "ppp-1.com":true,
+    }
+    domain_checker.SetZoneTests(1, []string{"dncheck_no_34_hyphens"})
+
+    for domain, expected := range domains {
+        t.Run(domain, func(t *testing.T) {
+            result, err := domain_checker.CheckZoneSpecificTests(dbconn, domain, 1)
+            if err != nil {
+                t.Error("zone test failed ", err)
+            }
+            if result != expected {
+                t.Error("zone test incorrect ", domain)
+            }
+        })
+    }
+
+    domains = map[string]bool{
+        "domain.ex.com":true,
+        "p.com":true,
+        "pp--1.com":false,
+        "ppp--1.com":false,
+        "ppp-1.com":true,
+    }
+    domain_checker.SetZoneTests(1, []string{"dncheck_no_consecutive_hyphens"})
 
     for domain, expected := range domains {
         t.Run(domain, func(t *testing.T) {
@@ -107,26 +198,6 @@ func TestDomainValidity(t *testing.T) {
                 t.Errorf("test on %s failed", domain)
             }
         })
-    }
-}
-
-func TestZoneSpecific(t *testing.T) {
-    domains := map[string]bool{
-        "xn--abc.ru":false,
-        "xn-abc.ru":true,
-    }
-    for domain, expected := range domains {
-        t.Run(domain, func(t *testing.T) {
-            result := iterZoneSpecificChecks(domain, []string{"dncheck_no_consecutive_hyphens"})
-            if result != expected {
-                t.Errorf("test on %s failed", domain)
-            }
-        })
-    }
-
-    result := iterZoneSpecificChecks("xn-ina.ru", []string{"dncheck_no_consecutive_hyphens", "nonexistant"})
-    if !result {
-        t.Errorf("test on nonexistant failed")
     }
 }
 

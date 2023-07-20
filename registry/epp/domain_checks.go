@@ -9,8 +9,11 @@ import (
 )
 
 var zone_checks = map[string]func(string) bool {
-    "dncheck_idna":checkIDNAValidity,
-    "dncheck_no_consecutive_hyphens":checkDoubleHyphens,
+    "dncheck_no_consecutive_hyphens":checkNoDoubleHyphens, // forbid consecutive hyphens
+    "dncheck_no_idn_punycode":checkNoIDN, // forbid idn punycode encoding
+    "dncheck_no_single_character":checkNoSingleCharDomains, // forbid single character domains
+    "dncheck_no_34_hyphens":checkNo34Hyphens, // forbid hyphens in domains at 3d and 4th position
+    "dncheck_idna":checkIDNAValidity, // validity of idn domains
 }
 
 func ConvertIDNA(domain string) (string, error) {
@@ -26,17 +29,33 @@ func checkIDNAValidity(domain string) bool {
     return err == nil
 }
 
-func checkDoubleHyphens(domain string) bool {
+func checkNoSingleCharDomains(domain string) bool {
+    return len(domain) > 1
+}
+
+func checkNo34Hyphens(domain string) bool {
+    if len(domain) < 4 {
+        return true
+    }
+    return !(domain[2] == '-' && domain[3] == '-')
+}
+
+func checkNoIDN(domain string) bool {
+    return !strings.HasPrefix(domain, "xn--")
+}
+
+func checkNoDoubleHyphens(domain string) bool {
     return !strings.Contains(domain, "--")
 }
 
 func iterZoneSpecificChecks(domain string, tests []string) bool {
+    parts := strings.Split(domain, ".")
     for _, funcname := range tests {
         if _, ok := zone_checks[funcname]; !ok {
-            glg.Error("incorrect check " +funcname)
+            glg.Error("incorrect check ", funcname)
             continue
         }
-        if !zone_checks[funcname](domain) {
+        if !zone_checks[funcname](parts[0]) {
             return false
         }
     }
