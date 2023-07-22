@@ -785,8 +785,6 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
         SELECT count(*) INTO _num FROM domain_contact_map
             WHERE contactid = OLD.registrant;
         IF _num = 0 THEN
-            SELECT count(*) INTO _num FROM keyset_contact_map
-                WHERE contactid = OLD.registrant;
             EXECUTE status_clear_state(_num <> 0, 16, OLD.registrant);
         END IF;
       END IF;
