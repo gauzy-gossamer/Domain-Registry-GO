@@ -321,6 +321,8 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     resp.Result.Code = response.RetCode
     if resp.Result.Code == 2500 {
         resp.Result.Msg = "Command failed; server closing connection"
+    } else if resp.Result.Code == 2401 {
+        resp.Result.Msg = "Internal server error"
     } else {
         resp.Result.Msg = response.Msg
     }

@@ -38,12 +38,21 @@ func GetUserIPAddr(serv *Server, req *http.Request) string {
     }   
 }
 
-func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, req *http.Request, serv *Server, XML string) string {
+func ProcessCommand(ctx context.Context, epp EPPContext, w http.ResponseWriter, req *http.Request, serv *Server, XML string) (ret string) {
     logger := epp.GetLogger()
-    cmd, errv := serv.XmlParser.ParseMessage(XML)
     reqctx := epp.GetReqContext(ctx)
-    var logid uint64
     epp_res := &EPPResult{}
+
+    defer func() {
+        if recoveryMessage := recover(); recoveryMessage != nil {
+            logger.ErrorWithStack(recoveryMessage)
+            epp_res.RetCode = EPP_INTERNAL_ERR
+            ret = xml.GenerateResponse(epp_res, "", reqctx.SvTRID)
+        }
+    }()
+
+    cmd, errv := serv.XmlParser.ParseMessage(XML)
+    var logid uint64
 
     if errv != nil {
         cmd = &xml.XMLCommand{}

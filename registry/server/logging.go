@@ -1,6 +1,8 @@
 package server
 
 import (
+    "runtime/debug"
+
     "github.com/kpango/glg"
 )
 
@@ -15,7 +17,7 @@ var logLevelMap = map[string]glg.LEVEL {
 
 func SetLogWriter(logfile string) {
     logwriter := glg.FileWriter(logfile, 0666)
-	glg.Get().SetMode(glg.WRITER).SetWriter(logwriter)
+    glg.Get().SetMode(glg.WRITER).SetWriter(logwriter)
 }
 
 /* only done on startup */
@@ -28,37 +30,45 @@ func SetLogLevel(loglevel string) {
 }
 
 type Logger struct {
-	prefix string
+    prefix string
 }
 
 func NewLogger(prefix string) Logger {
-	return Logger{prefix:prefix}
+    return Logger{prefix:prefix}
 }
 
 func (l *Logger) SetPrefix(prefix string) {
-	l.prefix = "["+prefix+"]"
+    l.prefix = "["+prefix+"]"
 }
 
 func (l *Logger) Info(params... any) {
-	t_params := []any{l.prefix}
-	t_params = append(t_params, params...)
+    t_params := []any{l.prefix}
+    t_params = append(t_params, params...)
     _ = glg.Info(t_params...)
 }
 
 func (l *Logger) Error(params... any) {
-	t_params := []any{l.prefix}
-	t_params = append(t_params, params...)
+    t_params := []any{l.prefix}
+    t_params = append(t_params, params...)
+    glg.Error(t_params...)
+}
+
+func (l *Logger) ErrorWithStack(params... any) {
+    t_params := []any{l.prefix}
+    t_params = append(t_params, params...)
+    t_params = append(t_params, string(debug.Stack()))
+
     glg.Error(t_params...)
 }
 
 func (l *Logger) Trace(params... any) {
-	t_params := []any{l.prefix}
-	t_params = append(t_params, params...)
-    glg.Trace(t_params...)
+    t_params := []any{l.prefix}
+    t_params = append(t_params, params...)
+    _ = glg.Trace(t_params...)
 }
 
 func (l *Logger) Fatal(params... any) {
-	t_params := []any{l.prefix}
-	t_params = append(t_params, params...)
+    t_params := []any{l.prefix}
+    t_params = append(t_params, params...)
     glg.Fatal(t_params...)
 }

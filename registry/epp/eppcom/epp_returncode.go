@@ -30,6 +30,7 @@ const (
     EPP_PARAM_VALUE_POLICY         = 2306 // bad value e.g. status flag server from client
 
     EPP_FAILED = 2400
+    EPP_INTERNAL_ERR = 2401
     EPP_AUTH_CLOSING_ERR   = 2501
 
     EPP_SESSION_LIMIT   = 2502
