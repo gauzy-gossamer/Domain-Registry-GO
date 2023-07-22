@@ -10,14 +10,6 @@ comment on table Keyset is 'Evidence of Keysets';
 comment on column Keyset.id is 'reference into object table';
 
 
-CREATE TABLE keyset_contact_map (
-    keysetid integer CONSTRAINT keyset_contact_map_keysetid_fkey REFERENCES Keyset(id) ON UPDATE CASCADE NOT NULL,
-    contactid integer CONSTRAINT keyset_contact_map_contactid_fkey REFERENCES Contact(ID) ON UPDATE CASCADE ON DELETE CASCADE NOT NULL,
-    CONSTRAINT keyset_contact_map_pkey PRIMARY KEY (contactid, keysetid)
-);
-CREATE INDEX keyset_contact_map_contact_idx ON keyset_contact_map (contactid);
-CREATE INDEX keyset_contact_map_keyset_idx ON keyset_contact_map (keysetid);
-
 CREATE TABLE dnssec_algorithm (
     id INTEGER CONSTRAINT dnssec_algorithm_pkey PRIMARY KEY,
     handle VARCHAR(64) CONSTRAINT dnssec_algorithm_handle_idx UNIQUE,
@@ -185,13 +177,6 @@ CREATE TABLE Keyset_history (
 );
 
 comment on table Keyset_history is 'historic data from Keyset table';
-
-CREATE TABLE keyset_contact_map_history (
-    historyid integer CONSTRAINT keyset_contact_map_history_historyid_fkey REFERENCES History,
-    keysetid integer CONSTRAINT keyset_contact_map_history_keysetid_fkey REFERENCES object_registry(id),
-    contactid integer CONSTRAINT keyset_contact_map_history_contactid_fkey REFERENCES object_registry(id),
-    CONSTRAINT keyset_contact_map_history_pkey PRIMARY KEY (historyid, contactid, keysetid)
-);
 
 CREATE TABLE DSRecord_history (
     historyid integer CONSTRAINT dsrecord_history_historyid_fkey REFERENCES History,

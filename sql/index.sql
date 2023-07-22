@@ -13,8 +13,6 @@ CREATE INDEX host_history_id_idx ON host_history (id);
 CREATE INDEX host_ipaddr_map_history_id_idx ON host_ipaddr_map_history (id);
 CREATE INDEX host_ipaddr_map_history_hostid_idx ON host_ipaddr_map_history (hostid);
 CREATE INDEX host_ipaddr_map_history_nssetid_idx ON host_ipaddr_map_history (nssetid);
-CREATE INDEX nsset_contact_map_history_nssetid_idx ON nsset_contact_map_history (nssetid);
-CREATE INDEX nsset_contact_map_history_contactid_idx ON nsset_contact_map_history (contactid);
 CREATE INDEX contact_history_id_idx ON contact_history (id);
 CREATE INDEX enumval_history_domainid_idx ON enumval_history (domainid);
 CREATE INDEX object_history_id_idx ON object_history (id);

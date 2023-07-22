@@ -106,20 +106,6 @@ comment on table NSSet_History is
 
 creation - in case of any change in nsset table, including changes in bindings to other tables';
 
--- DROP TABLE nsset_contact_map_history  CASCADE;
-CREATE TABLE nsset_contact_map_history (
-        historyID INTEGER CONSTRAINT nsset_contact_map_history_historyid_fkey REFERENCES History,
-        NSSetID INTEGER CONSTRAINT nsset_contact_map_history_nssetid_fkey REFERENCES object_registry (id), 
-        ContactID INTEGER CONSTRAINT nsset_contact_map_history_contactid_fkey REFERENCES object_registry (id),
--- TODO   ContactHistoryID 
-        CONSTRAINT nsset_contact_map_history_pkey PRIMARY KEY (historyID,NSSetID, ContactID)
-        );
-
-comment on table nsset_contact_map_history is
-'Historic data from nsset_contact_map table
-
-creation - all contact links which are linked to changed nsset are copied here';
-
 -- DROP TABLE Host_history  CASCADE;
 CREATE TABLE Host_history  (
         historyID INTEGER CONSTRAINT host_history_historyid_fkey REFERENCES History,  -- it can exist more hosts so that it isn't primary key

@@ -316,17 +316,13 @@ $$ language plpgsql;
 CREATE VIEW public.domain_states AS
  SELECT d.id AS object_id,
     o.historyid AS object_hid,
-    (((((COALESCE(osr.states, '{}'::integer[]) ||
+    ((((COALESCE(osr.states, '{}'::integer[]) ||
         CASE
-            WHEN public.timestamp_test(d.exdate, '0'::character varying, '0'::character varying, 'UTC'::character varying) THEN ARRAY[9, 1, 3]
+            WHEN public.timestamp_test(d.exdate, '0'::character varying, '0'::character varying, 'UTC'::character varying) THEN ARRAY[9, 1, 3] -- expired
             ELSE '{}'::integer[]
         END) ||
         CASE
-            WHEN (d.nsset IS NULL) THEN ARRAY[14]
-            ELSE '{}'::integer[]
-        END) ||
-        CASE
-            WHEN (NOT public.date_time_test((d.exdate)::date, ep_ex_not.val, '0'::character varying, ep_tz.val)) THEN ARRAY[2]
+            WHEN (NOT public.date_time_test((d.exdate)::date, ep_ex_not.val, '0'::character varying, ep_tz.val)) THEN ARRAY[2] -- serverRenewProhibited
             ELSE '{}'::integer[]
         END) ||
         CASE
@@ -338,7 +334,10 @@ CREATE VIEW public.domain_states AS
                             FROM host_ipaddr_map him WHERE him.hostid=dhm.hostid ) > 0
                         ELSE true 
                     END)))                                                                              
-                  WHERE (dhm.domainid = d.id)) < (ep_min_hosts.val)::integer) OR (5 = ANY (COALESCE(osr.states, '{}'::integer[])))) THEN ARRAY[15]
+                  WHERE (dhm.domainid = d.id)) < (ep_min_hosts.val)::integer)
+                  OR (5 = ANY (COALESCE(osr.states, '{}'::integer[]))) -- serverOutzoneManual
+                  OR (33 = ANY (COALESCE(osr.states, '{}'::integer[]))) -- clientHold
+                ) THEN ARRAY[15] -- inactive
             ELSE '{}'::integer[]
         END) ||
         CASE
@@ -346,8 +345,7 @@ CREATE VIEW public.domain_states AS
             ELSE '{}'::integer[]
         END) AS states
    FROM public.object_registry o,
-    ((((((((((public.domain d
-     LEFT JOIN public.enumval e ON ((d.id = e.domainid)))
+    (((((((((public.domain d
      LEFT JOIN public.object_state_request_now osr ON ((d.id = osr.object_id)))
      JOIN public.enum_parameters ep_ex_not ON ((ep_ex_not.id = 3)))
      JOIN public.enum_parameters ep_ex_dns ON ((ep_ex_dns.id = 4)))
@@ -454,8 +452,6 @@ FROM
     SELECT registrant AS cid FROM domain
     UNION
     SELECT contactid AS cid FROM domain_contact_map
-    UNION
-    SELECT contactid AS cid FROM keyset_contact_map
   ) AS cl ON (o.id=cl.cid)
   LEFT JOIN (
     SELECT object_id, MAX(valid_to) AS last_linked
@@ -705,10 +701,8 @@ CREATE TRIGGER trigger_object_state_hid BEFORE INSERT OR UPDATE
 CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
   DECLARE
     _num INTEGER;
-    _nsset_old INTEGER;
     _registrant_old INTEGER;
     _keyset_old INTEGER;
-    _nsset_new INTEGER;
     _registrant_new INTEGER;
     _keyset_new INTEGER;
     _ex_not VARCHAR;
@@ -725,10 +719,8 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
       RETURN NULL;
     END IF;
 
-    _nsset_old := NULL;
     _registrant_old := NULL;
     _keyset_old := NULL;
-    _nsset_new := NULL;
     _registrant_new := NULL;
     _keyset_new := NULL;
     SELECT val INTO _ex_not FROM enum_parameters WHERE id=3;
@@ -741,22 +733,13 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
     -- is it INSERT operation
     IF TG_OP = 'INSERT' THEN
       _registrant_new := NEW.registrant;
-      _nsset_new := NEW.nsset;
       _keyset_new := NEW.keyset;
 
-      -- state: nssetMissing
-      EXECUTE status_update_state(
-        NEW.nsset ISNULL, 14, NEW.id
-      );
     -- is it UPDATE operation
     ELSIF TG_OP = 'UPDATE' THEN
       IF NEW.registrant <> OLD.registrant THEN
         _registrant_old := OLD.registrant;
         _registrant_new := NEW.registrant;
-      END IF;
-      IF COALESCE(NEW.nsset,0) <> COALESCE(OLD.nsset,0) THEN
-        _nsset_old := OLD.nsset;
-        _nsset_new := NEW.nsset;
       END IF;
       IF COALESCE(NEW.keyset,0) <> COALESCE(OLD.keyset,0) THEN
         _keyset_old := OLD.keyset;
@@ -776,16 +759,9 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
           9, NEW.id
         );
       END IF; -- change in exdate
-      IF COALESCE(NEW.nsset,0) <> COALESCE(OLD.nsset,0) THEN
-        -- state: nssetMissing
-        EXECUTE status_update_state(
-          NEW.nsset ISNULL, 14, NEW.id
-        );
-      END IF; -- change in nsset
     -- is it DELETE operation
     ELSIF TG_OP = 'DELETE' THEN
       _registrant_old := OLD.registrant;
-      _nsset_old := OLD.nsset; -- may be NULL!
       _keyset_old := OLD.keyset; -- may be NULL!
       -- exdate is meaningless when deleting (probably)
     END IF;
@@ -793,10 +769,6 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
     -- add registrant's linked status if there is none
     EXECUTE status_set_state(
       _registrant_new IS NOT NULL, 16, _registrant_new
-    );
-    -- add nsset's linked status if there is none
-    EXECUTE status_set_state(
-      _nsset_new IS NOT NULL, 16, _nsset_new
     );
     -- add keyset's linked status if there is none
     EXECUTE status_set_state(
@@ -818,14 +790,6 @@ CREATE OR REPLACE FUNCTION status_update_domain() RETURNS TRIGGER AS $$
             EXECUTE status_clear_state(_num <> 0, 16, OLD.registrant);
         END IF;
       END IF;
-    END IF;
-    -- remove nsset's linked status if not bound
-    -- locking must be done (see comment above)
-    IF _nsset_old IS NOT NULL AND
-       status_clear_lock(_nsset_old, 16) IS NOT NULL  
-    THEN
-      SELECT count(*) INTO _num FROM domain WHERE nsset = OLD.nsset;
-      EXECUTE status_clear_state(_num <> 0, 16, OLD.nsset);
     END IF;
     -- remove keyset's linked status if not bound
     -- locking must be done (see comment above)
@@ -904,8 +868,6 @@ CREATE OR REPLACE FUNCTION status_update_contact_map() RETURNS TRIGGER AS $$
         SELECT count(*) INTO _num FROM domain_contact_map
             WHERE contactid = OLD.contactid;
         IF _num = 0 THEN
-            SELECT count(*) INTO _num FROM keyset_contact_map
-                WHERE contactid = OLD.contactid;
             EXECUTE status_clear_state(_num <> 0, 16, OLD.contactid);
         END IF;
       END IF;
@@ -916,10 +878,6 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_domain_contact_map AFTER INSERT OR DELETE OR UPDATE
   ON domain_contact_map FOR EACH ROW 
-  EXECUTE PROCEDURE status_update_contact_map();
-
-CREATE TRIGGER trigger_keyset_contact_map AFTER INSERT OR DELETE OR UPDATE
-  ON keyset_contact_map FOR EACH ROW 
   EXECUTE PROCEDURE status_update_contact_map();
 
 -- object history tables are filled after normal object tables (i.e. domain)
@@ -984,15 +942,6 @@ IS 'lock changes of object state requests by object';
 CREATE TRIGGER "trigger_lock_object_state_request"
   AFTER INSERT OR UPDATE ON object_state_request
   FOR EACH ROW EXECUTE PROCEDURE lock_object_state_request();
-
-
--- pyfred + domainbrowser
-CREATE OR REPLACE VIEW domains_by_nsset_view AS
-    SELECT nsset, COUNT(nsset) AS number FROM domain WHERE nsset IS NOT NULL GROUP BY nsset
-;
-CREATE OR REPLACE VIEW domains_by_keyset_view AS
-    SELECT keyset, COUNT(keyset) AS number FROM domain WHERE keyset IS NOT NULL GROUP BY keyset
-;
 
 --
 -- Collect states into one string

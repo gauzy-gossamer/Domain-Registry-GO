@@ -19,8 +19,6 @@ DROP TABLE Host_history  CASCADE;
 DROP TABLE Login CASCADE;
 DROP TABLE Message;
 DROP TABLE NSSet CASCADE;
-DROP TABLE nsset_contact_map CASCADE;
-DROP TABLE nsset_contact_map_history  CASCADE;
 DROP TABLE NSSet_history  CASCADE;
 DROP TABLE RegistrarACL CASCADE;
 DROP TABLE Registrar CASCADE;
