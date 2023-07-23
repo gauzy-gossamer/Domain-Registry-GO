@@ -1,15 +1,11 @@
 package epp
 
 import (
-    "fmt"
     "context"
 
     "registry/xml"
     "registry/server"
     . "registry/epp/eppcom"
-
-    "github.com/jackc/pgx/v5"
-    "github.com/kpango/glg"
 )
 
 type EPPContext struct {
@@ -34,7 +30,7 @@ func (e *EPPContext) ResolveErrorMsg(db *server.DBConn, epp_result *EPPResult, l
 
     err := row.Scan(&epp_result.Msg)
     if err != nil {
-        glg.Error(err)
+        e.logger.Error(err)
     }
 }
 
@@ -184,56 +180,4 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
 
     ctx.ResolveErrorMsg(ctx.dbconn, epp_result, Lang)
     return epp_result
-}
-
-func authenticateRegistrar(ctx *EPPContext, regid uint, v *xml.EPPLogin) (bool, error) {
-    var cert string
-    ctx.logger.Info("authenticate", regid, v.Fingerprint, v.PW)
-    row := ctx.dbconn.QueryRow("SELECT cert FROM registraracl " +
-                       "WHERE registrarid = $1::integer and cert = $2::text and password = $3::text", regid, v.Fingerprint, v.PW)
-    err := row.Scan(&cert)
-
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            return false, nil
-        }
-        return false, err
-    }
-    return true, nil
-}
-
-func epp_login_impl(ctx *EPPContext, v *xml.EPPLogin) (*EPPResult) {
-    ctx.logger.Info("Login", v.Clid)
-    var id uint
-    var system bool
-    var requests int
-
-    row := ctx.dbconn.QueryRow("SELECT id, system, epp_requests_limit" +
-                               " FROM registrar WHERE handle = $1::text", v.Clid)
-    err := row.Scan(&id, &system, &requests)
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
-        }
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-    if ok, err := authenticateRegistrar(ctx, id, v); !ok || err != nil {
-        if !ok {
-            return &EPPResult{RetCode:EPP_AUTHENTICATION_ERR}
-        }
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-
-    sessionid, err := ctx.serv.Sessions.LoginSession(ctx.dbconn, id, v.Lang)
-    if err != nil {
-        var res = EPPResult{RetCode:EPP_SESSION_LIMIT, Msg:fmt.Sprint(err)}
-        return &res
-    }
-
-    var res = EPPResult{RetCode:EPP_OK}
-    var loginResult = LoginResult{Sessionid:sessionid}
-    res.Content = &loginResult
-    return &res
 }

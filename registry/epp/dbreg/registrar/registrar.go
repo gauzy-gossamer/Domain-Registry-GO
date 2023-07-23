@@ -7,15 +7,19 @@ import (
     "github.com/jackc/pgx/v5"
 )
 
-func GetRegistrarByHandle(db *server.DBConn, handle string) (*RegistrarPair, error) {
-    row := db.QueryRow("SELECT id, system " +
-                       " FROM registrar WHERE handle = $1::text FOR SHARE", handle)
+type RegistrarInfo struct {
+    RegistrarPair
+    System bool
+}
 
-    reg_info := RegistrarPair{}
+func GetRegistrarByHandle(db *server.DBConn, handle string) (*RegistrarInfo, error) {
+    row := db.QueryRow("SELECT id, system FROM registrar WHERE handle = $1::text FOR SHARE",
+                      handle)
+
+    reg_info := RegistrarInfo{}
     reg_info.Handle.Set(handle)
 
-    var system bool
-    err := row.Scan(&reg_info.Id, &system)
+    err := row.Scan(&reg_info.Id, &reg_info.System)
     if err != nil {
         if err == pgx.ErrNoRows {
             return &reg_info, &dbreg.ParamError{Val:"registrar " + handle + " doesn't exist"}
@@ -45,4 +49,37 @@ func GetRegistrarIPAddrs(db *server.DBConn, registrar_id uint64) ([]string, erro
     }
 
     return addrs, nil
+}
+
+func SetNewPassword(db *server.DBConn, registrar_id uint, passwd string, new_passwd string) error {
+    row := db.QueryRow("UPDATE registraracl SET password = $1::text WHERE password = $2::text and registrarid = $3::integer returning id",
+                       new_passwd, passwd, registrar_id)
+
+    var changed_reg int
+    err := row.Scan(&changed_reg)
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            return dbreg.ObjectNotFound
+        }
+        return err
+    }
+
+    return nil
+}
+
+func AuthenticateRegistrar(db *server.DBConn, regid uint, fingerprint string, passwd string) error {
+    row := db.QueryRow("SELECT registrarid FROM registraracl WHERE registrarid = $1::integer and cert = $2::text and password = $3::text",
+                       regid, fingerprint, passwd)
+
+    var reg int
+    err := row.Scan(&reg)
+
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            return dbreg.ObjectNotFound
+        }
+        return err
+    }
+
+    return nil
 }

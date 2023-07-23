@@ -19,9 +19,9 @@ import (
     "registry/xml"
 )
 
-func getRegistrar(db *server.DBConn) (uint, string, string, string, error) {
+func getRegistrar(db *server.DBConn, system bool) (uint, string, string, string, error) {
     row := db.QueryRow("SELECT r.id, handle, cert, password FROM registrar r " +
-                       "JOIN registraracl rc on r.id=rc.registrarid WHERE r.system = 'f' LIMIT 1;")
+                       "JOIN registraracl rc on r.id=rc.registrarid WHERE r.system = $1 LIMIT 1;", system)
     var regid uint
     var reg_handle string
     var cert string
@@ -29,6 +29,15 @@ func getRegistrar(db *server.DBConn) (uint, string, string, string, error) {
     err := row.Scan(&regid, &reg_handle, &cert, &password)
 
     return regid, reg_handle, cert, password, err
+}
+
+func logoutCommand(t *testing.T, eppc *epp.EPPContext, sessionid uint64) {
+    logout_cmd := xml.XMLCommand{CmdType:EPP_LOGOUT, Sessionid:sessionid}
+
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &logout_cmd)
+    if epp_res.RetCode != EPP_CLOSING_LOGOUT {
+        t.Error(epp_res.Msg)
+    }
 }
 
 func TestEPPLogin(t *testing.T) {
@@ -43,7 +52,7 @@ func TestEPPLogin(t *testing.T) {
 
     serv.Sessions.InitSessions(dbconn)
 
-    _, handle, cert, password, err := getRegistrar(dbconn)
+    _, handle, cert, password, err := getRegistrar(dbconn, false)
     if err != nil {
         t.Error("failed to get registrar")
         return
@@ -52,24 +61,28 @@ func TestEPPLogin(t *testing.T) {
 
     eppc := epp.NewEPPContext(serv)
 
+    /* incorrect password */
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password + "err", Lang:LANG_EN, Fingerprint:cert}
     epp_res := eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
+    /* incorrect certificate */
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert + "err"}
     epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
+    /* incorrect registrar handle */
     login_cmd.Content = &xml.EPPLogin{Clid:handle + "err", PW:password, Lang:LANG_EN, Fingerprint:cert}
     epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_AUTHENTICATION_ERR {
         t.Error(epp_res.Msg)
     }
 
+    /* must pass */
     login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, Lang:LANG_EN, Fingerprint:cert}
     epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
     if epp_res.RetCode != EPP_OK {
@@ -81,14 +94,62 @@ func TestEPPLogin(t *testing.T) {
         t.Error("conversion error")
         return
     }
-    sessionid := login_obj.Sessionid
 
-    logout_cmd := xml.XMLCommand{CmdType:EPP_LOGOUT, Sessionid:sessionid}
+    logoutCommand(t, eppc, login_obj.Sessionid)
+}
 
-    epp_res = eppc.ExecuteEPPCommand(context.Background(), &logout_cmd)
-    if epp_res.RetCode != EPP_CLOSING_LOGOUT {
+func TestEPPChangePassword(t *testing.T) {
+    tester := NewEPPTester()
+    serv := tester.GetServer()
+
+    dbconn, err := server.AcquireConn(serv.Pool, server.NewLogger(""))
+    if err != nil {
+        t.Error("failed acquire conn")
+    }
+    defer dbconn.Close()
+
+    serv.Sessions.InitSessions(dbconn)
+
+    new_password := server.GenerateRandString(8)
+
+    _, handle, cert, password, err := getRegistrar(dbconn, true)
+    if err != nil {
+        t.Error("failed to get registrar")
+        return
+    }
+
+    login_cmd := xml.XMLCommand{CmdType:EPP_LOGIN} 
+    eppc := epp.NewEPPContext(serv)
+
+    /* set new password */
+    login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:password, NewPW:new_password, Fingerprint:cert}
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
+    if epp_res.RetCode != EPP_OK {
         t.Error(epp_res.Msg)
     }
+
+    login_obj, ok := epp_res.Content.(*LoginResult)
+    if !ok {
+        t.Error("conversion error")
+        return
+    }
+
+    logoutCommand(t, eppc, login_obj.Sessionid)
+
+    /* change back */
+    login_cmd.Content = &xml.EPPLogin{Clid:handle, PW:new_password, NewPW:password, Fingerprint:cert}
+    epp_res = eppc.ExecuteEPPCommand(context.Background(), &login_cmd)
+    if epp_res.RetCode != EPP_OK {
+        t.Error(epp_res.Msg)
+    }
+
+    login_obj, ok = epp_res.Content.(*LoginResult)
+    if !ok {
+        t.Error("conversion error")
+        return
+    }
+
+    logoutCommand(t, eppc, login_obj.Sessionid)
 }
 
 func pollAck(t *testing.T, eppc *epp.EPPContext, msgid uint, retcode int, sessionid uint64) {

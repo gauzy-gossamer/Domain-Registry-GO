@@ -70,7 +70,7 @@ class RipnEpp():
 
         return self._client_send(cmd)
 
-    def login(self, clid: str, pw: str, lang='en', clTRID: str=None) -> dict:
+    def login(self, clid: str, pw: str, lang='en', clTRID: str=None, newpw: str=None) -> dict:
         cmd = ec.EppLoginCommand(extra_nsmap=self.extra_nsmap, lang=lang)
 
         if clTRID is not None:
@@ -78,6 +78,9 @@ class RipnEpp():
 
         cmd.clID = clid
         cmd.pw = pw
+
+        if newpw is not None:
+            cmd.newPW = newpw
 
         ret = self._client_send(cmd)
         self.session_open = True

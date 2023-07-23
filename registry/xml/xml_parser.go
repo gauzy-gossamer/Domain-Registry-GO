@@ -589,7 +589,9 @@ func parseLogin(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
         return nil, &CommandError{RetCode:2500}
     }
 
-    var epp_login = EPPLogin{PW:pw, Clid:clid, Lang:uint(lang_code)}
+    epp_login := EPPLogin{PW:pw, Clid:clid, Lang:uint(lang_code)}
+    epp_login.NewPW = xpath.String(ctx.Find("epp:newPW"))
+
     var cmd = XMLCommand{CmdType:EPP_LOGIN, Content:&epp_login}
 
     return &cmd, nil

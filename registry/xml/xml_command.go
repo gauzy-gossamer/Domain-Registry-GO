@@ -7,6 +7,7 @@ import (
 type EPPLogin struct {
     Clid string
     PW string
+    NewPW string
     Lang uint
     Fingerprint string
 }
@@ -57,7 +58,6 @@ type UpdateDomain struct {
     AddStatus []string
     RemStatus []string
     Description []string
-    DSRecord *eppcom.DSRecord
 }
 
 type UpdateHost struct {
