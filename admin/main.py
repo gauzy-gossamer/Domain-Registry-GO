@@ -11,7 +11,12 @@ from registrar.router import router as registrar_router
 from balance.router import router as balance_router
 import mailer.mailer as mailer
 
+from panel.main import create_admin_app
+
+
 app = FastAPI()
+create_admin_app(app)
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
