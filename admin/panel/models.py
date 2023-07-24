@@ -13,6 +13,11 @@ class Admin(AbstractAdmin):
     def __str__(self):
         return f"{self.pk}#{self.username}"
 
+class AdminSession(Model):
+    admin = fields.ForeignKeyField("models.Admin")
+    token = fields.CharField(max_length=255)
+    expire = fields.DatetimeField()
+
 
 class Zone(Model):
     fqdn = fields.CharField(max_length=255)
