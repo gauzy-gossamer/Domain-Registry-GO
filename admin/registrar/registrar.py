@@ -5,18 +5,6 @@ import registrar.schema as schema
 from registrar.models import registrars_table, registraracl_table, registrar_ipaddr_table, registrar_invoice_table
 from zone.models import zones_table
 
-# create object in object_registry table
-async def create_object(database, handle : str, registrar : int, object_type : str) -> int:
-    object_type_id = await database.execute("SELECT get_object_type_id(:val)", values={'val':object_type})
-
-    object_id = await database.execute("SELECT create_object(:registrar, :handle, :object_type_id)",
-                    values={'registrar':registrar, 'handle':handle, 'object_type_id':object_type_id})
- 
-    await database.execute("INSERT INTO object(id, clid) VALUES(:object_id, :registrar)",
-                    values={'object_id':object_id, 'registrar':registrar})
-
-    return object_id
-
 async def test_system_reg() -> bool:
     query = registrars_table.select().where(registrars_table.c.system==True)
     ret = await database.fetch_one(query)
@@ -35,11 +23,8 @@ async def create_registrar(registrar : schema.Registrar) -> dict:
 
         registrar_id = await database.execute(query)
 
-        object_id = await create_object(database, registrar.handle, registrar_id, "registrar")
-
-        # connect registrar table to object_registry
-        query = registrars_table.update().values(object_id=object_id).where(registrars_table.c.id == registrar_id)
-        await database.execute(query)
+        object_id = await database.execute("SELECT object_id FROM registrar WHERE id = :id",
+                          values={'id':registrar_id})
 
     return {**registrar.dict(), "id":registrar_id, "object_id":object_id}
 

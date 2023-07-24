@@ -27,6 +27,9 @@ eb1b9f569788   postgres:latest         "docker-entrypoint.s…"   About a minute
 
 # Configuration
 
+## Admin UI
+You can access admin UI to configure and manage zone and registrars. If you're using docker, by default it deploys to 127.0.0.1:8088. Go to http://127.0.0.1:8088/admin/init to create first admin user.
+
 ## Set up new zone
 
 ### Add zone

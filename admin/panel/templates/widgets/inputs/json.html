@@ -1,0 +1,31 @@
+<div class="form-group mb-3">
+    <label class="form-label">{{ label }}</label>
+    <input type='hidden' value='{{value}}' name='{{name}}' id='{{name}}_h'>
+    <textarea {% if not null %}required{% endif %} class="form-control" id='{{name}}_t'
+              placeholder="{{ placeholder }}"
+              {% if disabled %}disabled{% endif %}></textarea>
+    {% if help_text %}
+        <small class="form-hint">
+            {{ help_text }}
+        </small>
+    {% endif %}
+</div>
+<script>
+(function(){
+    let txt = document.getElementById('{{name}}_t');
+    let hidden = document.getElementById('{{name}}_h');
+
+    let val = hidden.value;
+    if (val == null || val === '') {
+        hidden.value = '[]';
+    } else {
+        let parsed = JSON.parse(val);
+        txt.textContent = parsed.join('\n');
+    }
+
+    txt.addEventListener('keyup', function() {
+        let vals = this.value.split('\n');
+        hidden.value = JSON.stringify(vals);
+    });
+})();
+</script>
