@@ -1,0 +1,28 @@
+<div class="form-group mb-3">
+    <label class="form-label">{{ label }}</label>
+    <input {% if not null %}required{% endif %} type="{{ input_type }}" class="form-control" name="{{ name }}" id='{{name}}_i'
+           placeholder="{{ placeholder }}" {% if disabled %}disabled{% endif %} value="{{ value }}">
+    {% if help_text %}
+        <small class="form-hint">
+            {{ help_text }}
+        </small>
+    {% endif %}
+</div>
+<script>
+(function(){
+    let input = document.getElementById('{{name}}_i');
+    input.addEventListener('change', function() {
+        let val = this.value;
+        try {
+            let url = new URL("http://" + val);
+            if (url.search != "" || url.pathname != "/") {
+                throw "invalid url";
+            } 
+            this.setCustomValidity('');
+        } catch(error) {
+            this.setCustomValidity("Invalid hostname.");
+        }
+    });
+
+})();
+</script>

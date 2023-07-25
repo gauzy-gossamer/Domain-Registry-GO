@@ -1,0 +1,18 @@
+<script>
+(function(){
+    let scriptTag = document.getElementsByTagName('script');
+    scriptTag = scriptTag[scriptTag.length - 1];
+    let parentTag = scriptTag.parentNode;
+
+    let tSpan = document.createElement('span');
+    tSpan.innerHTML = '{{value}}';
+    parentTag.appendChild(tSpan);
+    let val = tSpan.textContent;
+    if (val == 'null') {
+        tSpan.textContent = '';
+        return;
+    }
+    let parsed = JSON.parse(val);
+    tSpan.textContent = parsed.join(',');
+})();
+</script>

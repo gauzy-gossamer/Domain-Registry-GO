@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+{% block page_body %}
+    <div class="row">
+        <div class="col-10">
+            <div class="card">
+                <div class="card-body">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter text-nowrap datatable">
+                    <thead>
+                    <tr>
+                        {% for label in labels %}
+                            <th>{{ label }}</th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for value in values %}
+                        <tr>
+                            <td>{{value[ 'registrar__handle' ]}}</td>
+                            <td><a href='{{ request.app.admin_path }}/registraripaddr/list?registrarid__handle__contains={{value[ 'registrar__handle' ]}}'</a>IP-addresses</td>
+                            <td><a href='{{ request.app.admin_path }}/registrarinvoice/list?registrarid__handle__contains={{value[ 'registrar__handle' ]}}'</a>Zones</td>
+                            <td><a href='{{ request.app.admin_path }}/registrar/update/{{value[ 'registrar__id' ]}}'</a>Edit</td>
+                            <td>{{value[ 'total' ]}}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

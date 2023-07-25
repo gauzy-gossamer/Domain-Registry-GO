@@ -66,3 +66,22 @@ CREATE TABLE RegistrarInvoice (
 comment on column RegistrarInvoice.Zone is 'zone for which has registrar an access';
 comment on column RegistrarInvoice.FromDate is 'date when began registrar work in a zone';
 comment on column RegistrarInvoice.toDate is 'after this date, registrar is not allowed to register';
+
+-- connect object registry with registrar tables
+CREATE OR REPLACE FUNCTION create_registrar_object() RETURNS TRIGGER AS $$
+DECLARE
+   object_type_ INTEGER;
+   object_id_ BIGINT;
+BEGIN
+    SELECT get_object_type_id('registrar'::text) into object_type_;
+    SELECT create_object(NEW.id, NEW.handle, object_type_) into object_id_;
+    INSERT INTO object(id, clid) VALUES(object_id_, NEW.id);
+    UPDATE registrar SET object_id = object_id_ WHERE id = NEW.id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER create_registrar_trigger AFTER INSERT
+  ON registrar FOR EACH ROW EXECUTE PROCEDURE create_registrar_object();
