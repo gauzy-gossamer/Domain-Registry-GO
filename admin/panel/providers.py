@@ -1,20 +1,19 @@
 import uuid
 from datetime import datetime, timedelta
 from pytz import timezone
-from fastapi import Depends, Form
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.status import HTTP_303_SEE_OTHER, HTTP_401_UNAUTHORIZED
 
 from fastapi_admin import constants
-from fastapi_admin.models import AbstractAdmin
 from panel.models import AdminSession
 from fastapi_admin.providers.login import UsernamePasswordProvider
 from fastapi_admin.template import templates
-from fastapi_admin.utils import check_password, hash_password
+from fastapi_admin.utils import check_password
 
 
+# override default LoginProvider to drop dependency on redis
 class LoginProvider(UsernamePasswordProvider):
     async def login(self, request: Request):
         form = await request.form()

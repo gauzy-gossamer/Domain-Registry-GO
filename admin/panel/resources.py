@@ -87,7 +87,7 @@ class Registrators(Dropdown):
         page_pre_title = "Registrar certificates and password"
         model = RegistrarACL
         filters = [
-            filters.Search(name="registrar__handle", label="Registrar", search_mode="contains", placeholder="Search for registrar")
+            filters.Search(name="registrarid__handle", label="Registrar", search_mode="contains", placeholder="Search for registrar")
         ]
         fields = [
             Field(name="registrarid", label='registrar', input_=inputs.ForeignKey(model=Registrar)), 
@@ -101,7 +101,7 @@ class Registrators(Dropdown):
         page_pre_title = "Only access from these addresses will be allowed"
         model = RegistrarIPAddr
         filters = [
-            filters.Search(name="registrar__handle", label="Registrar", search_mode="contains", placeholder="Search for registrar")
+            filters.Search(name="registrarid__handle", label="Registrar", search_mode="contains", placeholder="Search for registrar")
         ]
         fields = [
             Field(name="registrarid", label='Registrar', input_=inputs.ForeignKey(model=Registrar)), 
@@ -115,7 +115,7 @@ class Registrators(Dropdown):
         model = RegistrarInvoice
         filters = [
             filters.Search(
-                name="registrar__handle",
+                name="registrarid__handle",
                 label="Registrar",
                 search_mode="contains",
                 placeholder="Search for registrar",
@@ -132,6 +132,7 @@ class Registrators(Dropdown):
     resources = [RegistrarResource, RegistrarACLResource, RegistrarIPAddrResource, RegistrarZoneAccessResource]
 
 
+# use with no page to add balance on RegistrarBalanceResource
 class RegistrarTransactionResource(Model):
     label = "Add balance"
     model = RegistrarTransaction

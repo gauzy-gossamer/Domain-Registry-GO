@@ -3,6 +3,7 @@ from fastapi_admin.resources import Model, ComputeField
 from fastapi_admin.widgets import inputs
 from panel.models import Zone
 
+# multiple foreign key values proveded by related_fields list
 class ForeignKeyRelated(inputs.ForeignKey):
     def __init__(
             self,
@@ -35,6 +36,8 @@ class IPAddress(inputs.Text):
 class Hostname(inputs.Text):
     template = "widgets/inputs/hostname.html"
 
+
+# use pattern & title input properties
 class Regex(inputs.Input):
     def __init__(
             self,
@@ -57,6 +60,7 @@ class Regex(inputs.Input):
         )
     template = "widgets/inputs/regex.html"
 
+
 class Num(Regex):
     def __init__(
             self,
@@ -67,7 +71,7 @@ class Num(Regex):
             disabled: bool = False,
     ):
         super().__init__(
-            "^\d+$",
+            r"^\d+$",
             error="Should be a number.",
             null=null,
             default=default,
@@ -75,6 +79,7 @@ class Num(Regex):
             disabled=disabled,
             help_text=help_text,
         )
+
 
 class GetZoneName(ComputeField):
     async def get_value(self, request: 'Request', obj: dict):

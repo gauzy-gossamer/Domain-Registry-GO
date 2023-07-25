@@ -19,5 +19,3 @@ database = databases.Database(TEST_SQLALCHEMY_DATABASE_URL)
 TORTOISE_DATABASE_URL = (
     f"postgres://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
-
-REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
