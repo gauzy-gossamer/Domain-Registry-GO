@@ -193,11 +193,10 @@ func TestEPPPoll(t *testing.T) {
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)
     }
-    poll_msg, ok := epp_res.Content.(*PollMessage)
-    if !ok {
+    if epp_res.Content == nil {
         t.Error("should be ok")
     }
-    pollAck(t, eppc, poll_msg.Msgid, EPP_OK, sessionid) 
+    pollAck(t, eppc, epp_res.MsgQ.Msgid, EPP_OK, sessionid) 
 }
 
 func infoContact(t *testing.T, eppc *epp.EPPContext, name string, retcode int, sessionid uint64) *InfoContactData {

@@ -64,6 +64,11 @@ type Domain struct {
     TrDate   string   `xml:"trDate,omitempty"`
 }
 
+type IPAddr struct {
+    IPAddr string `xml:",chardata"`
+    IPVer  string `xml:"ip,attr,omitempty"`
+}
+
 type Host struct {
     XMLName  xml.Name `xml:"host:infData"`
     XMLNSDom string   `xml:"xmlns:host,attr"`
@@ -71,7 +76,7 @@ type Host struct {
     Name     string   `xml:"name"`
     Roid     string   `xml:"roid"`
     States   []ObjectState `xml:"status"`
-    Addrs    []string `xml:"addr,omitempty"`
+    Addrs    []IPAddr `xml:"addr,omitempty"`
     ClID     string   `xml:"clID"`
     CrID     string   `xml:"crID"`
     CrDate   string   `xml:"crDate"`
@@ -158,7 +163,7 @@ type Registrar struct {
     Email []string `xml:"email,omitempty"`
     WWW string `xml:"www,omitempty"`
     Whois string `xml:"whois,omitempty"`
-    Addrs    []string `xml:"addr,omitempty"`
+    Addrs    []IPAddr `xml:"addr,omitempty"`
 
     UpDate   string   `xml:"upDate,omitempty"`
 }
@@ -249,7 +254,7 @@ type TransferResponse struct {
     AcDate   string   `xml:"acDate"`
 }
 
-type MsgQ struct {
+type MsgQResponse struct {
     XMLName xml.Name `xml:"msgQ"`
     Count   uint     `xml:"count,attr"`
     MsgId   uint     `xml:"id,attr"`

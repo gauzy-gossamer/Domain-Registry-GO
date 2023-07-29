@@ -3,6 +3,7 @@ package xml
 import (
     "time"
     "bytes"
+    "strings"
     . "registry/epp/eppcom"
     "encoding/xml"
     "github.com/kpango/glg"
@@ -143,8 +144,8 @@ func CreateDomainResponse(response *EPPResult) *ResDataS {
     return &ResDataS{Obj:domain}
 }
 
-func TransferDomainResponse(response *EPPResult) *ResDataS {
-    tr_data, ok := response.Content.(*TransferRequestObject)
+func TransferDomainResponse(content interface{}) *ResDataS {
+    tr_data, ok := content.(*TransferRequestObject)
     if !ok {
         glg.Error("conversion error")
         return nil
@@ -161,6 +162,14 @@ func TransferDomainResponse(response *EPPResult) *ResDataS {
     }
 
     return &ResDataS{Obj:trn}
+}
+
+func get_ipversion(ipaddr string) string {
+    if strings.Contains(ipaddr, ":") {
+        return "v6"
+    } else {
+        return "v4"
+    }
 }
 
 func HostResponse(response *EPPResult) *ResDataS {
@@ -184,7 +193,9 @@ func HostResponse(response *EPPResult) *ResDataS {
     for _,v := range host_data.States {
         host.States = append(host.States, ObjectState{Val:v})
     }
-    host.Addrs = append(host.Addrs, host_data.Addrs...)
+    for _, ipaddr := range host_data.Addrs {
+        host.Addrs = append(host.Addrs, IPAddr{IPAddr:ipaddr, IPVer:get_ipversion(ipaddr)})
+    }
 
     return &ResDataS{Obj:host}
 }
@@ -272,19 +283,24 @@ func CreateContactResponse(response *EPPResult) *ResDataS {
     return &ResDataS{Obj:contact}
 }
 
-func PollReqResponse(response *EPPResult) *MsgQ {
-    poll_msg, ok := response.Content.(*PollMessage)
-    if !ok {
-        glg.Error("conversion error")
-        return nil
-    }
-    msg_q := &MsgQ{
+func PollReqResponse(poll_msg *MsgQ) *MsgQResponse {
+    msg_q := &MsgQResponse{
         Count:poll_msg.Count,
         MsgId:poll_msg.Msgid,
         Msg:poll_msg.Msg,
         QDate:FormatDatePG(poll_msg.QDate),
     }
     return msg_q
+}
+
+func PollResponse(response *EPPResult) *ResDataS {
+    if response.MsgQ == nil {
+        return nil
+    }
+    if response.MsgQ.MsgType == 22 { 
+        return TransferDomainResponse(response.Content)
+    }
+    return nil
 }
 
 func RegistrarResponse(response *EPPResult) *ResDataS {
@@ -310,7 +326,9 @@ func RegistrarResponse(response *EPPResult) *ResDataS {
         UpDate:FormatDatePG(registrar_data.Update_time),
     }
 
-    registrar.Addrs = append(registrar.Addrs, registrar_data.Addrs...)
+    for _, ipaddr := range registrar_data.Addrs {
+        registrar.Addrs = append(registrar.Addrs, IPAddr{IPAddr:ipaddr, IPVer:get_ipversion(ipaddr)})
+    }
 
     return &ResDataS{Obj:registrar}
 }
@@ -326,7 +344,7 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
     } else {
         resp.Result.Msg = response.Msg
     }
-    if resp.Result.Code != 1000 {
+    if resp.Result.Code != 1000 && resp.Result.Code != 1301 {
         if len(response.Errors) > 0 {
             for _,v := range response.Errors {
                 resp.Result.ExtValue = append(resp.Result.ExtValue, ExtValueS{Reason:v})
@@ -358,7 +376,10 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
                 resp.ResData = CreateContactResponse(response)
 
             case EPP_TRANSFER_DOMAIN:
-                resp.ResData = TransferDomainResponse(response)
+                resp.ResData = TransferDomainResponse(response.Content)
+
+            case EPP_POLL_REQ:
+                resp.ResData = PollResponse(response)
 
         }
     }
@@ -371,10 +392,8 @@ func GenerateResponse(response *EPPResult, clTRID string, svTRID string) string 
         }
     }
 
-    if response.CmdType == EPP_POLL_REQ {
-        if response.Content != nil {
-            resp.MsgQ = PollReqResponse(response)
-        }
+    if response.MsgQ != nil {
+        resp.MsgQ = PollReqResponse(response.MsgQ)
     }
     resp.TrID.ClTRID = clTRID
     resp.TrID.SvTRID = svTRID

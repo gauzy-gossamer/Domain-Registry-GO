@@ -22,42 +22,63 @@ func CreatePollMessage(db *server.DBConn, registrar_id uint, msg_type int) (uint
     return poll_msg_id, err
 }
 
-func GetPollMessageCount(db *server.DBConn, regid uint) (uint, error) {
+type PollMsg struct {
+    db *server.DBConn
+    regid uint
+    extended bool
+}
+
+func NewPollMsg(db *server.DBConn, regid uint) *PollMsg {
+    return &PollMsg{
+        db:db,
+        regid:regid,
+    }
+}
+
+func (p *PollMsg) SetExtended(extended bool) *PollMsg {
+    p.extended = extended
+    return p
+}
+
+func (p *PollMsg) GetPollMessageCount() (uint, error) {
     query := "SELECT count(*) FROM message WHERE seen='f' " +
              "and clid=$1::bigint and exdate > now() and msgtype in(22,1)"
-    row := db.QueryRow(query, regid)
+    row := p.db.QueryRow(query, p.regid)
 
     var count uint
     err := row.Scan(&count)
     return count, err
 }
 
-func getPollTransferObject(db *server.DBConn, msgid uint) (*PollMessage, error) {
+func (p *PollMsg) getPollTransferObject(msgid uint) (*PollMessage, error) {
     var poll_msg PollMessage
-    row := db.QueryRow("SELECT request_id, status FROM epp_transfer_request_state_change "+
+    row := p.db.QueryRow("SELECT request_id, status FROM epp_transfer_request_state_change "+
                        "WHERE msgid=$1::integer", msgid)
     var requestid, status uint
     err := row.Scan(&requestid, &status)
     if err != nil {
         return &poll_msg, err
     }
-    find_transfer := FindTransferRequest{TrID:requestid}
-    transfer_obj, err := find_transfer.Exec(db)
-    if err != nil {
-        return &poll_msg, err
+
+    if p.extended {
+        find_transfer := FindTransferRequest{TrID:requestid}
+        transfer_obj, err := find_transfer.Exec(p.db)
+        if err != nil {
+            return &poll_msg, err
+        }
+        poll_msg.Content = transfer_obj
     }
 
     poll_msg.Msgid = msgid
-    poll_msg.Msg = "changed state"
-    poll_msg.Content = transfer_obj
+    poll_msg.Msg = GetTransferMsg(status)
 
     return &poll_msg, nil
 }
 
-func GetFirstUnreadPollMessage(db *server.DBConn, regid uint) (*PollMessage, error) {
+func (p *PollMsg) GetFirstUnreadPollMessage() (*PollMessage, error) {
     query := "SELECT id, msgtype, crdate, exdate FROM message WHERE seen='f' " +
              "and clid=$1::bigint and exdate > now() and msgtype in(22,1) ORDER BY id LIMIT 1"
-    row := db.QueryRow(query, regid)
+    row := p.db.QueryRow(query, p.regid)
 
     var msgtype, msgid uint
     var crdate, exdate pgtype.Timestamp
@@ -69,14 +90,18 @@ func GetFirstUnreadPollMessage(db *server.DBConn, regid uint) (*PollMessage, err
     var poll_msg *PollMessage
     switch msgtype {
         case POLL_LOW_CREDIT:
-            poll_msg = &PollMessage{Msgid:msgid, Msg:"Credit balance low."}
+            poll_msg = &PollMessage{}
+            poll_msg.Msgid = msgid
+            poll_msg.Msg = "Credit balance low."
         case POLL_TRANSFER_REQUEST:
-            poll_msg, err = getPollTransferObject(db, msgid)
+            poll_msg, err = p.getPollTransferObject(msgid)
             if err != nil {
                 return poll_msg, err
             }
         default:
-            poll_msg = &PollMessage{Msgid:msgid, Msg:"unsupported"}
+            poll_msg = &PollMessage{}
+            poll_msg.Msgid = msgid
+            poll_msg.Msg = "unsupported"
     }
     poll_msg.MsgType = msgtype
     poll_msg.QDate = crdate
@@ -89,4 +114,3 @@ func MarkMessageRead(db *server.DBConn, regid uint, msgid uint64) error {
      _, err := db.Exec(query, msgid, regid)
     return err
 }
-

@@ -1,33 +1,50 @@
 package epp
 
 import (
-//    "registry/xml"
     "strconv"
     "registry/epp/dbreg"
     . "registry/epp/eppcom"
 )
 
-func epp_poll_req_impl(ctx *EPPContext) *EPPResult {
-    ctx.logger.Info("Poll req")
+func get_poll_msg(ctx *EPPContext) (*PollMessage, error)  {
+    var poll_msg *PollMessage
 
-    count, err :=  dbreg.GetPollMessageCount(ctx.dbconn, ctx.session.Regid)
+    ctx.logger.Trace(ctx.session.Regid)
+    poll := dbreg.NewPollMsg(ctx.dbconn, ctx.session.Regid)
+    count, err :=  poll.GetPollMessageCount()
     if err != nil {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
+        return poll_msg, err
     }
 
     if count == 0 {
-        return &EPPResult{RetCode:EPP_POLL_NO_MSG}
+        poll_msg = &PollMessage{}
+        poll_msg.Count = count
+        return poll_msg, nil
     }
-    poll_msg, err := dbreg.GetFirstUnreadPollMessage(ctx.dbconn, ctx.session.Regid)
+    poll_msg, err = poll.SetExtended(true).GetFirstUnreadPollMessage()
+    if err != nil {
+        return poll_msg, err
+    }
+    poll_msg.Count = count
+
+    return poll_msg, nil
+}
+
+func epp_poll_req_impl(ctx *EPPContext) *EPPResult {
+    ctx.logger.Info("Poll req")
+
+    poll_msg, err := get_poll_msg(ctx)
     if err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
-    poll_msg.Count = count
+
+    if poll_msg.Count == 0 {
+        return &EPPResult{RetCode:EPP_POLL_NO_MSG}
+    }
 
     var res = EPPResult{RetCode:EPP_POLL_ACK_MSG}
-    res.Content = poll_msg
+    res.Content = poll_msg.Content
     return &res
 }
 
@@ -46,6 +63,5 @@ func epp_poll_ack_impl(ctx *EPPContext, msgid string) *EPPResult {
     }
 
     var res = EPPResult{RetCode:EPP_OK}
-//    res.Content = host_data
     return &res
 }

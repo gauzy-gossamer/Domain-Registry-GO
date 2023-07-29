@@ -75,6 +75,19 @@ type SecDNSUpdate struct {
     RemAll bool
 }
 
+type MsgQ struct {
+    Msgid uint
+    Msg   string
+    Count uint
+    MsgType uint
+    QDate  pgtype.Timestamp /* when poll message was created */
+}
+
+type PollMessage struct {
+    MsgQ
+    Content interface{}
+}
+
 /* main structure returned by ExecuteEPPCommand */
 type EPPResult struct {
     CmdType int
@@ -86,6 +99,7 @@ type EPPResult struct {
     Content interface{}
     // EPP Extensions
     Ext []EPPExt
+    MsgQ *MsgQ
 }
 
 type CheckResult struct {
@@ -228,13 +242,4 @@ type CreateObjectResult struct {
 type CreateDomainResult struct {
     CreateObjectResult
     Exdate pgtype.Timestamp
-}
-
-type PollMessage struct {
-    MsgType uint
-    Msgid uint
-    Msg   string
-    Count uint
-    QDate  pgtype.Timestamp /* when poll message was created */
-    Content interface{}
 }

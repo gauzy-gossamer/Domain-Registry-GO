@@ -333,7 +333,6 @@ func TestEPPDomainTransfer(t *testing.T) {
 
     /* access to a second registrar should not be allowed without a transfer */
     _ = infoDomain(t, eppc, test_domain, EPP_AUTHORIZATION_ERR, sessionid2)
-    _ = infoContact(t, eppc, test_contact, EPP_AUTHORIZATION_ERR, sessionid2)
 
     transferDomain(t, eppc, test_domain, reg_handle2, TR_REQUEST, EPP_OK, sessionid)
     transferDomain(t, eppc, test_domain, reg_handle2, TR_QUERY, EPP_OK, sessionid)
@@ -351,11 +350,11 @@ func TestEPPDomainTransfer(t *testing.T) {
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)
     }
-    poll_msg, ok := epp_res.Content.(*PollMessage)
+    _, ok := epp_res.Content.(*TransferRequestObject)
     if !ok {
         t.Error("should be ok")
     }
-    pollAck(t, eppc, poll_msg.Msgid, EPP_OK, sessionid2) 
+    pollAck(t, eppc, epp_res.MsgQ.Msgid, EPP_OK, sessionid2) 
 
     transferDomain(t, eppc, test_domain, "", TR_REJECT, EPP_OK, sessionid2)
 
@@ -408,6 +407,9 @@ func TestEPPDomainTransfer2(t *testing.T) {
     test_host2 := "ns2." + host_domain
     createHost(t, eppc, test_host1, []string{}, EPP_OK, sessionid)
     createHost(t, eppc, test_host2, []string{}, EPP_OK, sessionid)
+
+    /* access to a second registrar should not be allowed without a transfer */
+    _ = infoContact(t, eppc, test_contact, EPP_AUTHORIZATION_ERR, sessionid2)
 
     createDomain(t, eppc, test_domain, test_contact, EPP_OK, sessionid)
     updateDomainHosts(t, eppc, test_domain, []string{test_host1, test_host2}, []string{}, EPP_OK, sessionid)

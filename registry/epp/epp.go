@@ -34,6 +34,23 @@ func (e *EPPContext) ResolveErrorMsg(db *server.DBConn, epp_result *EPPResult, l
     }
 }
 
+func (e *EPPContext) FillMsgQ(epp_result *EPPResult) error {
+    if e.session == nil {
+        return nil
+    }
+    /* could already be filled */
+    if epp_result.MsgQ != nil {
+        return nil
+    }
+    poll_msg, err := get_poll_msg(e)
+    if err != nil {
+        return err
+    }
+    epp_result.MsgQ = &poll_msg.MsgQ
+    return nil
+}
+
+
 func (e *EPPContext) SetLogger(logger server.Logger) {
     e.logger = logger
 }
@@ -177,6 +194,9 @@ func (ctx *EPPContext) ExecuteEPPCommand(ctx_ context.Context, cmd *xml.XMLComma
         epp_result = &EPPResult{CmdType:EPP_UNKNOWN_CMD, RetCode:EPP_UNKNOWN_ERR}
     }
     epp_result.CmdType = cmd.CmdType
+    if err := ctx.FillMsgQ(epp_result); err != nil {
+        ctx.logger.Error(err)
+    }
 
     ctx.ResolveErrorMsg(ctx.dbconn, epp_result, Lang)
     return epp_result
