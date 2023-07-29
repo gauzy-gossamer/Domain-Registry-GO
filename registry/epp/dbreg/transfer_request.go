@@ -15,6 +15,23 @@ const (
     TrServerCancelled
 )
 
+func GetTransferMsg(status uint) string {
+    switch status {
+        case TrPending:
+            return "Transfer requested."
+        case TrClientCancelled:
+            return "Transfer cancelled."
+        case TrClientRejected:
+            return "Transfer rejected."
+        case TrClientApproved:
+            return "Transfer approved."
+        case TrServerCancelled:
+            return "Transfer cancelled."
+        default:
+            return "unknown"
+    }
+}
+
 type FindTransferRequest struct {
     Ownerid uint
     Acquirerid uint
