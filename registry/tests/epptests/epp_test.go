@@ -193,7 +193,7 @@ func TestEPPPoll(t *testing.T) {
     if epp_res.RetCode != EPP_POLL_ACK_MSG {
         t.Error("should be ", EPP_POLL_ACK_MSG, epp_res.RetCode)
     }
-    if epp_res.Content == nil {
+    if epp_res.MsgQ == nil {
         t.Error("should be ok")
     }
     pollAck(t, eppc, epp_res.MsgQ.Msgid, EPP_OK, sessionid) 
