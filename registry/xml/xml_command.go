@@ -66,6 +66,7 @@ type UpdateHost struct {
     RemAddrs []string
     AddStatus []string
     RemStatus []string
+    NewName string
 }
 
 type UpdateContact struct {

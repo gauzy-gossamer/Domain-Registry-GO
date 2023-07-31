@@ -77,6 +77,23 @@ func get_host_object(ctx *EPPContext, host_handle string, for_update bool) (*Inf
     return host_data, object_states, nil
 }
 
+func normalizeHostHandlePair(ctx *EPPContext, name string) (string, string, *EPPResult) {
+    host_name := normalizeDomainUpper(name)
+    host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
+    if !checkDomainValidity(host_name) {
+        return host_name, host_handle, &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY, Errors:[]string{"incorrect host name"}}
+    }
+    _, err := dbreg.GetHostObject(ctx.dbconn, host_handle, ctx.session.Regid)
+    if err == nil {
+        return host_name, host_handle, &EPPResult{RetCode:EPP_OBJECT_EXISTS}
+    } else if err != pgx.ErrNoRows {
+        ctx.logger.Error(err)
+        return host_name, host_handle, &EPPResult{RetCode:EPP_FAILED}
+    }
+
+    return host_name, host_handle, nil
+}
+
 func epp_host_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
     ctx.logger.Info("Info host", v.Name)
     host_name := normalizeDomainUpper(v.Name)
@@ -101,22 +118,14 @@ func epp_host_info_impl(ctx *EPPContext, v *xml.InfoObject) (*EPPResult) {
 }
 
 func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
-    host_name := normalizeDomainUpper(v.Name)
-    host_handle := hostRegistrarHandle(host_name, ctx.session.Regid)
-    ctx.logger.Info("Create host", host_handle, v.Addr)
+    ctx.logger.Info("Create host", v.Name, v.Addr)
 
-    if !checkDomainValidity(host_name) {
-        return &EPPResult{RetCode:EPP_PARAM_VALUE_POLICY}
+    host_name, host_handle, err_res := normalizeHostHandlePair(ctx, v.Name)
+    if err_res != nil {
+        return err_res
     }
 
-    _, err := dbreg.GetHostObject(ctx.dbconn, host_handle, ctx.session.Regid)
-    if err == nil {
-        return &EPPResult{RetCode:EPP_OBJECT_EXISTS}
-    } else if err != pgx.ErrNoRows {
-        ctx.logger.Error(err)
-        return &EPPResult{RetCode:EPP_FAILED}
-    }
-
+    var err error
     if len(v.Addr) > 0 {
         if ok, err := isHostSubordinate(ctx.dbconn, host_name, ctx.session.Regid); !ok || err != nil  {
             if err != nil {
@@ -132,10 +141,9 @@ func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
         }
     }
 
-    err = ctx.dbconn.Begin()
-    if err != nil {
+    if err = ctx.dbconn.Begin(); err != nil {
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode: EPP_FAILED}
     }
     defer ctx.dbconn.Rollback()
 
@@ -143,13 +151,12 @@ func epp_host_create_impl(ctx *EPPContext, v *xml.CreateHost) (*EPPResult) {
     create_result, err := create_host.SetParams(host_handle, ctx.session.Regid, strings.ToLower(host_name), v.Addr).Exec(ctx.dbconn)
     if err != nil {
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode: EPP_FAILED}
     }
 
-    err = ctx.dbconn.Commit()
-    if err != nil {
+    if err = ctx.dbconn.Commit(); err != nil {
         ctx.logger.Error(err)
-        return &EPPResult{RetCode:2500}
+        return &EPPResult{RetCode: EPP_FAILED}
     }
 
     var res = EPPResult{RetCode:EPP_OK}
@@ -189,8 +196,17 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    err = ctx.dbconn.Begin()
-    if err != nil {
+    update_host := host.NewUpdateHostDB()
+
+    if v.NewName != "" {
+        new_host_name, new_host_handle, res := normalizeHostHandlePair(ctx, v.NewName)
+        if res != nil {
+            return res
+        }
+        update_host.SetNewName(new_host_name, new_host_handle)
+    }
+
+    if err = ctx.dbconn.Begin(); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
@@ -215,7 +231,7 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    if len(v.RemAddrs) > 0 {
+    if len(v.RemAddrs) > 0 || len(v.AddAddrs) > 0 {
         host_addrs, err := host.GetHostIPAddrs(ctx.dbconn, host_data.Id)
         if err != nil {
             ctx.logger.Error(err)
@@ -240,14 +256,12 @@ func epp_host_update_impl(ctx *EPPContext, v *xml.UpdateHost) *EPPResult {
         }
     }
 
-    err = host.UpdateHost(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs)
-    if err != nil {
+    if err = update_host.Exec(ctx.dbconn, host_data.Id, ctx.session.Regid, v.AddAddrs, v.RemAddrs); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }
 
-    err = ctx.dbconn.Commit()
-    if err != nil {
+    if err = ctx.dbconn.Commit(); err != nil {
         ctx.logger.Error(err)
         return &EPPResult{RetCode:EPP_FAILED}
     }

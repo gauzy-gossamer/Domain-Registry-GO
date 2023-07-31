@@ -450,6 +450,8 @@ func parseUpdate(ctx *xpath.Context, node *types.Node) (*XMLCommand, error) {
             update_host.AddStatus = getStatusList(ctx, "host:add/host:status")
             update_host.RemStatus = getStatusList(ctx, "host:rem/host:status")
 
+            update_host.NewName = xpath.String(ctx.Find("host:chg/host:name"))
+
             cmd.CmdType = EPP_UPDATE_HOST
             cmd.Content = &update_host
 

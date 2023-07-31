@@ -388,6 +388,16 @@ func updateHost(t *testing.T, eppc *epp.EPPContext, name string, add_ips []strin
     }
 }
 
+func renameHost(t *testing.T, eppc *epp.EPPContext, name string, new_name string, retcode int, sessionid uint64) {
+    update_host := xml.UpdateHost{Name:name, NewName:new_name}
+    update_cmd := xml.XMLCommand{CmdType:EPP_UPDATE_HOST, Sessionid:sessionid}
+    update_cmd.Content = &update_host
+    epp_res := eppc.ExecuteEPPCommand(context.Background(), &update_cmd)
+    if epp_res.RetCode != retcode {
+        t.Error("should be ", retcode, epp_res.Msg, epp_res.Errors)
+    }
+}
+
 func TestEPPHost(t *testing.T) {
     tester := NewEPPTester()
     serv := tester.GetServer()
@@ -442,8 +452,14 @@ func TestEPPHost(t *testing.T) {
     }
     updateHost(t, eppc, test_host, add_ips, []string{}, EPP_PARAM_VALUE_POLICY, sessionid)
 
+    new_name := "ns1." + generateRandomDomain("nonexistant.ru")
+
+    renameHost(t, eppc, non_subordinate_host, "ns1-p?", EPP_PARAM_VALUE_POLICY, sessionid)
+    renameHost(t, eppc, non_subordinate_host, new_name, EPP_OK, sessionid)
+
     deleteObject(t, eppc, test_host, EPP_DELETE_HOST, EPP_OK, sessionid)
-    deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OK, sessionid)
+    deleteObject(t, eppc, non_subordinate_host, EPP_DELETE_HOST, EPP_OBJECT_NOT_EXISTS, sessionid)
+    deleteObject(t, eppc, new_name, EPP_DELETE_HOST, EPP_OK, sessionid)
 }
 
 func testCheckResults(t *testing.T, content interface{}, tests map[string]int) {
