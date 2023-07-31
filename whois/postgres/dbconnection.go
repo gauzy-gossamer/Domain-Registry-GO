@@ -1,4 +1,4 @@
-package server
+package postgres
 
 import (
     "fmt"
@@ -9,10 +9,18 @@ import (
     "github.com/kpango/glg"
 )
 
+type DBConfig struct {
+    Host     string
+    Port     int
+    User     string
+    Password string
+    DBname   string
+}
+
 func CreatePool(dbconf *DBConfig) (*pgxpool.Pool, error) {
     psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
         "password=%s dbname=%s sslmode=disable",
-        dbconf.host, dbconf.port, dbconf.user, dbconf.password, dbconf.dbname)
+        dbconf.Host, dbconf.Port, dbconf.User, dbconf.Password, dbconf.DBname)
     ctx := context.Background()
     db, err := pgxpool.New(ctx, psqlInfo)
     if  err != nil {
