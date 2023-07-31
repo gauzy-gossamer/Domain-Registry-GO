@@ -1,10 +1,16 @@
 package server
 
 import (
-    "github.com/jackc/pgx/v5/pgxpool"
+    "whois/cache"
+    "whois/whois_resp"
 )
+
+type WhoisStorage interface {
+    GetDomain(domainname string) (whois_resp.Domain, error)
+}
 
 type Server struct {
     RGconf RegConfig
-    Pool *pgxpool.Pool
+    Cache cache.LRUCache[string, whois_resp.Domain]
+    Storage WhoisStorage
 }

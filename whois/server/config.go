@@ -4,18 +4,14 @@ import (
     "os"
     "bufio"
     "strings"
+    "reflect"
+    "errors"
+
+    "whois/postgres"
 
     "github.com/go-ini/ini"
     "github.com/kpango/glg"
 )
-
-type DBConfig struct {
-    host     string
-    port     int
-    user     string
-    password string
-    dbname   string
-}
 
 type HTTPConfig struct {
     Host string
@@ -23,9 +19,11 @@ type HTTPConfig struct {
 }
 
 type RegConfig struct {
-    DBconf DBConfig
+    DBconf postgres.DBConfig
     HTTPConf HTTPConfig
     Header string
+    Source string
+    CacheCap int
 }
 
 var LogLevelMap = map[string]glg.LEVEL {
@@ -35,6 +33,74 @@ var LogLevelMap = map[string]glg.LEVEL {
     "WARN":glg.WARN,
     "ERR":glg.ERR,
     "FATAL":glg.FATAL,
+}
+
+type ConfigVal struct {
+    Field string
+    Name string
+    Default any
+    Required bool
+}
+
+func setField(v interface{}, name string, value any) error {
+    fv := reflect.ValueOf(v).Elem().FieldByName(name)
+
+    switch value := value.(type) {
+        case string:
+            fv.SetString(value)
+        case uint:
+            fv.SetUint(uint64(value))
+        case int:
+            fv.SetInt(int64(value))
+        case bool:
+            fv.SetBool(value)
+        default:
+            return errors.New("unknown type")
+    }
+    return nil
+}
+
+func parseSection(cfg *ini.File, section_name string, set_to interface{}, params []ConfigVal) {
+    section, err := cfg.GetSection(section_name)
+    if err != nil {
+        glg.Fatal("no section", section_name, "in config")
+    }
+
+    for _,  val := range params {
+        key, err := section.GetKey(val.Name)
+        var kval any
+        if err != nil { 
+            if val.Required {
+                glg.Fatal(err)
+            }
+            /* set default value */
+            kval = val.Default
+        } else {
+            switch val.Default.(type) {
+                case int:
+                kval, err = key.Int()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case uint:
+                kval, err = key.Uint()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case bool:
+                kval, err = key.Bool()
+                if err != nil {
+                    glg.Fatal(err)
+                }
+                case string:
+                kval = key.String()
+            }
+        }
+
+        if err = setField(set_to, val.Field, kval); err != nil {
+            glg.Fatal(err)
+        }
+    }
 }
 
 func (r *RegConfig) LoadConfig(config_path string)  {
@@ -58,33 +124,27 @@ func (r *RegConfig) LoadConfig(config_path string)  {
     if err != nil {
         glg.Fatal(err)
     }
-    section, _ := cfg.GetSection("database")
 
-    params := []string {"host", "port", "user", "password", "name"}
-    for _,  val := range params {
-        key, err := section.GetKey(val)
-        if err != nil {
-            glg.Fatal(err)
-        }
-        switch val {
-            case "host":
-                r.DBconf.host = key.String()
-            case "port":
-                r.DBconf.port, err = key.Int()
-                if err != nil {
-                    glg.Fatal(err)
-                }
-            case "password":
-                r.DBconf.password = key.String()
-            case "name":
-                r.DBconf.dbname = key.String()
-            case "user":
-                r.DBconf.user = key.String()
-        }
-    }
+    parseSection(cfg, "database", &r.DBconf, []ConfigVal {
+        {"Host", "host", "", true},
+        {"Port", "port", 0, true},
+        {"Password", "password", "", true},
+        {"DBname", "name", "", true},
+        {"User", "user", "", true},
+    })
 
-    section, _ = cfg.GetSection("whois")
-    params = []string {"host", "port", "whois_header"}
+    parseSection(cfg, "whois", &r.HTTPConf, []ConfigVal {
+        {"Host", "host", "", true},
+        {"Port", "port", uint(0), true},
+    })
+
+    parseSection(cfg, "whois", r, []ConfigVal {
+        {"Source", "source", "", false},
+        {"CacheCap", "cache_capacity", 1000, false},
+    })
+
+    section, _ := cfg.GetSection("whois")
+    params := []string {"whois_header"}
     for _,  val := range params {
         key, err := section.GetKey(val)
         if err != nil {
@@ -92,14 +152,6 @@ func (r *RegConfig) LoadConfig(config_path string)  {
             continue
         }
         switch val {
-            case "host":
-                r.HTTPConf.Host = key.String()
-
-            case "port":
-                r.HTTPConf.Port, err = key.Uint()
-                if err != nil {
-                    glg.Fatal(err)
-                }
             case "whois_header":
                 parts := strings.Split(key.String(), "\\n")
                 r.Header = strings.Join(parts, "\r\n")

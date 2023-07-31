@@ -1,4 +1,4 @@
-package main
+package whois_resp
 
 import (
     "fmt"
@@ -9,6 +9,7 @@ import (
 
 type WhoisResponse struct {
     Header string
+    Source string
 }
 
 type WhoisField struct {
@@ -30,7 +31,7 @@ func FormatDatePG(date pgtype.Timestamp) string {
     return date.Time.Format("2006-01-01")
 }
 
-func getStates(domain *Domain) string {
+func getStates(domain Domain) string {
     var b strings.Builder
     b.WriteString("REGISTERED, ")
     if len(domain.Hosts) == 0 {
@@ -50,12 +51,17 @@ func getStates(domain *Domain) string {
     return b.String()
 }
 
-func (w *WhoisResponse) FormatResponse(whois_fields []*WhoisField) string {
+func (w *WhoisResponse) FormatResponse(whois_fields []*WhoisField, retrieved time.Time) string {
     var b strings.Builder
     b.WriteString(w.Header)
     for _, whois_field := range whois_fields {
         b.WriteString(fmt.Sprintf("%-15s%s\n", whois_field.field, whois_field.value))
     }
+    b.WriteString(fmt.Sprintf("source:        %s\n", w.Source))
+    b.WriteString("\nLast updated on ")
+    b.WriteString(retrieved.UTC().Format(time.RFC3339))
+    b.WriteByte('\n')
+
     b.WriteString("\n")
     return b.String()
 }
@@ -66,7 +72,7 @@ func (w *WhoisResponse) EmptyResponse() string {
     return response
 }
 
-func (w *WhoisResponse) FormatDomain(domain *Domain) string {
+func (w *WhoisResponse) FormatDomain(domain Domain) string {
     whois_fields := []*WhoisField{}
     whois_fields = append(whois_fields, &WhoisField{field:"domain:", value:domain.Name})
     for _, host := range domain.Hosts {
@@ -90,5 +96,5 @@ func (w *WhoisResponse) FormatDomain(domain *Domain) string {
     whois_fields = append(whois_fields, &WhoisField{field:"paid-till:", value:FormatDatetimePG(domain.ExDate)})
     whois_fields = append(whois_fields, &WhoisField{field:"free-date:", value:FormatDatePG(domain.DeleteDate)})
 
-    return w.FormatResponse(whois_fields)
+    return w.FormatResponse(whois_fields, domain.Retrieved)
 }

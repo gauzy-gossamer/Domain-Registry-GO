@@ -3,12 +3,16 @@ package main
 import (
     "fmt"
     "flag"
+    "time"
     "net"
     "net/http"
     "log"
     "io"
     "bufio"
+    "whois/cache"
     "whois/server"
+    "whois/whois_resp"
+    "whois/postgres"
     "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
     "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -26,19 +30,26 @@ func process_query(query string) (string, error) {
 
     glg.Trace(opts["type"], domain_name)
 
-    whois_resp := WhoisResponse{Header:serv.RGconf.Header}
+    whois_res := whois_resp.WhoisResponse{
+        Header:serv.RGconf.Header,
+        Source:serv.RGconf.Source,
+    }
 
     if opts["type"] == "domain" {
-        domain, err := getDomain(domain_name)
-        if err != nil {
-            if err == pgx.ErrNoRows {
-                return whois_resp.EmptyResponse(), nil
+        domain, ok := serv.Cache.Get(domain_name)
+        if !ok || time.Since(domain.Retrieved).Seconds() > 60 {
+            domain, err = serv.Storage.GetDomain(domain_name)
+            if err != nil {
+                if err == pgx.ErrNoRows {
+                    return whois_res.EmptyResponse(), nil
+                }
+                return "", err
             }
-            return "", err
+            serv.Cache.Put(domain_name, domain)
         }
-        return whois_resp.FormatDomain(domain), nil
+        return whois_res.FormatDomain(domain), nil
     }
-    return whois_resp.EmptyResponse(), nil
+    return whois_res.EmptyResponse(), nil
 }
 
 func handleTCPRequest(conn net.Conn) {
@@ -95,10 +106,12 @@ func main() {
         serv.RGconf.HTTPConf.Port = *port
     }
     var err error
-    serv.Pool, err = server.CreatePool(&serv.RGconf.DBconf)
+    serv.Storage, err = postgres.NewWhoisStorage(serv.RGconf.DBconf)
     if err != nil {
         log.Fatal(err)
     }
+
+    serv.Cache = cache.NewLRUCache[string, whois_resp.Domain](100)
 
     whois_addr := fmt.Sprintf("%s:%v", serv.RGconf.HTTPConf.Host, serv.RGconf.HTTPConf.Port)
 
