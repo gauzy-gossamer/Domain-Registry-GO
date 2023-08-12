@@ -7,6 +7,7 @@ import (
 
 type WhoisStorage interface {
     GetDomain(domainname string) (whois_resp.Domain, error)
+    GetRegistrar(registrar string) (whois_resp.Registrar, error)
 }
 
 type Server struct {

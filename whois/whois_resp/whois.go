@@ -55,6 +55,9 @@ func (w *WhoisResponse) FormatResponse(whois_fields []*WhoisField, retrieved tim
     var b strings.Builder
     b.WriteString(w.Header)
     for _, whois_field := range whois_fields {
+        if whois_field.value == "" {
+            continue
+        }
         b.WriteString(fmt.Sprintf("%-15s%s\n", whois_field.field, whois_field.value))
     }
     b.WriteString(fmt.Sprintf("source:        %s\n", w.Source))
@@ -97,4 +100,17 @@ func (w *WhoisResponse) FormatDomain(domain Domain) string {
     whois_fields = append(whois_fields, &WhoisField{field:"free-date:", value:FormatDatePG(domain.DeleteDate)})
 
     return w.FormatResponse(whois_fields, domain.Retrieved)
+}
+
+func (w *WhoisResponse) FormatRegistrar(reg Registrar) string {
+    whois_fields := []*WhoisField{}
+    whois_fields = append(whois_fields, &WhoisField{field:"nic-hdl:", value:reg.Handle})
+    whois_fields = append(whois_fields, &WhoisField{field:"org:", value:reg.Org})
+    whois_fields = append(whois_fields, &WhoisField{field:"phone:", value:reg.Phone.String})
+    whois_fields = append(whois_fields, &WhoisField{field:"fax-no:", value:reg.Fax.String})
+    whois_fields = append(whois_fields, &WhoisField{field:"e-mail:", value:reg.Email.String})
+    whois_fields = append(whois_fields, &WhoisField{field:"www:", value:reg.WWW.String})
+    whois_fields = append(whois_fields, &WhoisField{field:"whois:", value:reg.Whois.String})
+
+    return w.FormatResponse(whois_fields, reg.Retrieved)
 }

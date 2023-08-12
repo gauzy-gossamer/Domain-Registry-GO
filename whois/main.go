@@ -5,6 +5,7 @@ import (
     "flag"
     "time"
     "net"
+    "errors"
     "net/http"
     "log"
     "io"
@@ -13,7 +14,6 @@ import (
     "whois/server"
     "whois/whois_resp"
     "whois/postgres"
-    "github.com/jackc/pgx/v5"
     "github.com/kpango/glg"
     "github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -23,12 +23,12 @@ var serv server.Server
 func process_query(query string) (string, error) {
     server.Queries.Inc()
 
-    opts, domain_name, err := parseWhoisQuery(query)
+    opts, query, err := parseWhoisQuery(query)
     if err != nil {
         return "", err
     }
 
-    glg.Trace(opts["type"], domain_name)
+    glg.Trace(opts["type"], query)
 
     whois_res := whois_resp.WhoisResponse{
         Header:serv.RGconf.Header,
@@ -36,19 +36,29 @@ func process_query(query string) (string, error) {
     }
 
     if opts["type"] == "domain" {
-        domain, ok := serv.Cache.Get(domain_name)
+        domain, ok := serv.Cache.Get(query)
         if !ok || time.Since(domain.Retrieved).Seconds() > 60 {
-            domain, err = serv.Storage.GetDomain(domain_name)
+            domain, err = serv.Storage.GetDomain(query)
             if err != nil {
-                if err == pgx.ErrNoRows {
+                if errors.Is(err, whois_resp.ObjectNotFound) {
                     return whois_res.EmptyResponse(), nil
                 }
                 return "", err
             }
-            serv.Cache.Put(domain_name, domain)
+            serv.Cache.Put(query, domain)
         }
         return whois_res.FormatDomain(domain), nil
-    }
+    } else if opts["type"] == "registrar" {
+        reg, err := serv.Storage.GetRegistrar(query)
+        if err != nil {
+            if errors.Is(err, whois_resp.ObjectNotFound) {
+                return whois_res.EmptyResponse(), nil
+            }
+            return "", err
+        }
+        return whois_res.FormatRegistrar(reg), nil
+
+    } 
     return whois_res.EmptyResponse(), nil
 }
 

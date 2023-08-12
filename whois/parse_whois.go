@@ -43,11 +43,17 @@ func parseWhoisQuery(query string) (map[string]string, string, error) {
     if err != nil {
         return opts, query, err
     }
-    if _, ok := opts["type"]; !ok {
-        opts["type"] = "domain"
-    }
 
     query = strings.TrimSpace(query[i:])
+
+    if _, ok := opts["type"]; !ok {
+        /* if there are no dots, assume registrar is queried */
+        if !strings.Contains(query, ".") {
+            opts["type"] = "registrar"
+        } else {
+            opts["type"] = "domain"
+        }
+    }
 
     return opts, query, nil
 }

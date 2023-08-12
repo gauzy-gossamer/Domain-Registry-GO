@@ -6,6 +6,7 @@ import (
 
     "whois/whois_resp"
 
+    "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -72,6 +73,9 @@ func (w *WhoisStorage) GetDomain(domainname string) (whois_resp.Domain, error) {
                    &domain.Verified, &domain.CType, &domain.Registrar, &domain.Url, &domain.PendingDelete,
                    &domain.Inactive, &domain.TrRegistrar)
     if err != nil {
+        if err == pgx.ErrNoRows {
+            return domain, whois_resp.ObjectNotFound
+        }
         return domain, err
     }
     domain.Hosts, err = getHosts(dbconn, domain.Id)
@@ -82,4 +86,32 @@ func (w *WhoisStorage) GetDomain(domainname string) (whois_resp.Domain, error) {
     domain.Retrieved = time.Now()
 
     return domain, nil
+}
+
+func (w *WhoisStorage) GetRegistrar(reg_handle string) (whois_resp.Registrar, error) {
+    var reg whois_resp.Registrar
+    dbconn, err := AcquireConn(w.pool)
+    if err != nil {
+        return reg, err
+    }
+    defer dbconn.Close()
+
+    var query strings.Builder
+
+    query.WriteString("SELECT handle, intpostal, telephone->>0, fax->>0, email->>0, www, whois FROM registrar ")
+    query.WriteString("WHERE handle = UPPER($1::text)")
+
+    row := dbconn.QueryRow(query.String(), reg_handle)
+
+    err = row.Scan(&reg.Handle, &reg.Org, &reg.Phone, &reg.Fax, &reg.Email, &reg.WWW, &reg.Whois)
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            return reg, whois_resp.ObjectNotFound
+        }
+        return reg, err
+    }
+
+    reg.Retrieved = time.Now()
+
+    return reg, nil
 }
